@@ -395,7 +395,7 @@
   resolved "https://registry.yarnpkg.com/@nolyfill/is-core-module/-/is-core-module-1.0.39.tgz#3dc35ba0f1e66b403c00b39344f870298ebb1c8e"
   integrity sha512-nn5ozdjYQpUCZlWGuxcJY/KpxkWQs4DcbMCmKojjyrYDEAGy4Ce19NN4v5MduafTwJlbKc99UA8YhSVqq9yPZA==
 
-"@prisma/client@^6.5.0":
+"@prisma/client@^6.13.0":
   version "6.13.0"
   resolved "https://registry.yarnpkg.com/@prisma/client/-/client-6.13.0.tgz#7073ab6ccf10c0c99ab7582e39aa7a1422c6a7db"
   integrity sha512-8m2+I3dQovkV8CkDMluiwEV1TxV9EXdT6xaCz39O6jYw7mkf5gwfmi+cL4LJsEPwz5tG7sreBwkRpEMJedGYUQ==
@@ -429,6 +429,11 @@
     "@prisma/engines-version" "6.13.0-35.361e86d0ea4987e9f53a565309b3eed797a6bcbd"
     "@prisma/fetch-engine" "6.13.0"
     "@prisma/get-platform" "6.13.0"
+
+"@prisma/extension-accelerate@^2.0.2":
+  version "2.0.2"
+  resolved "https://registry.yarnpkg.com/@prisma/extension-accelerate/-/extension-accelerate-2.0.2.tgz#2a8afac940413fb814b50ce9015dac049a783503"
+  integrity sha512-yZK6/k7uOEFpEsKoZezQS1CKDboPtBCQ0NyI70e1Un8tDiRgg80iWGyjsJmRpps2ZIut3MroHP+dyR3wVKh8lA==
 
 "@prisma/fetch-engine@6.13.0":
   version "6.13.0"
@@ -2669,7 +2674,7 @@ prettier@^3.5.3:
   resolved "https://registry.yarnpkg.com/prettier/-/prettier-3.6.2.tgz#ccda02a1003ebbb2bfda6f83a074978f608b9393"
   integrity sha512-I7AIg5boAr5R0FFtJ6rCfD+LFsWHp81dolrFD8S79U9tb8Az2nGrJncnMSnys+bpQJfRUzqs9hnA81OAA3hCuQ==
 
-prisma@^6.5.0:
+prisma@^6.13.0:
   version "6.13.0"
   resolved "https://registry.yarnpkg.com/prisma/-/prisma-6.13.0.tgz#a1b88c9b9a11e8ffcba12870b9abac04b7d10ae8"
   integrity sha512-dfzORf0AbcEyyzxuv2lEwG8g+WRGF/qDQTpHf/6JoHsyF5MyzCEZwClVaEmw3WXcobgadosOboKUgQU0kFs9kw==
