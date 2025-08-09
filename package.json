@@ -24,6 +24,7 @@
     "@prisma/client": "^6.13.0",
     "@prisma/extension-accelerate": "^2.0.2",
     "@t3-oss/env-nextjs": "^0.12.0",
+    "firebase": "^12.1.0",
     "next": "^15.2.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
