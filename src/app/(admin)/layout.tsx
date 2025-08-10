@@ -9,9 +9,9 @@ import {
   Route,
   Calendar,
   Users,
-  ChevronLeft,
-  ChevronRight,
   Menu,
+  LogOut,
+  User,
 } from "lucide-react";
 
 import { ModeToggle } from "~/components/theme-toggle";
@@ -23,11 +23,12 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
   SidebarProvider,
   SidebarTrigger,
 } from "~/components/ui/sidebar";
+import { ProtectedRoute } from "~/components/protected-route";
+import { useAuth } from "~/hooks/use-auth";
 
 const menuItems = [
   { title: "Dashboard", href: "/admin", icon: Home },
@@ -39,6 +40,7 @@ const menuItems = [
 
 function AppSidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <Sidebar>
@@ -71,8 +73,23 @@ function AppSidebar() {
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter>
-        <div className="text-muted-foreground p-4 text-xs">
-          Shuttle Management v1.0
+        <div className="space-y-3 p-4">
+          <div className="flex items-center gap-2 text-sm">
+            <User className="size-4" />
+            <span className="truncate">{user?.email ?? "Admin User"}</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={logout}
+            className="w-full"
+          >
+            <LogOut className="mr-2 size-4" />
+            Logout
+          </Button>
+          <div className="text-muted-foreground text-xs">
+            Shuttle Management v1.0
+          </div>
         </div>
       </SidebarFooter>
     </Sidebar>
@@ -81,6 +98,7 @@ function AppSidebar() {
 
 function MobileSidebar() {
   const pathname = usePathname();
+  const { user, logout } = useAuth();
 
   return (
     <Sheet>
@@ -114,8 +132,23 @@ function MobileSidebar() {
               );
             })}
           </nav>
-          <div className="text-muted-foreground p-4 text-xs">
-            Shuttle Management v1.0
+          <div className="space-y-3 p-4">
+            <div className="flex items-center gap-2 text-sm">
+              <User className="size-4" />
+              <span className="truncate">{user?.email ?? "Admin User"}</span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={logout}
+              className="w-full"
+            >
+              <LogOut className="mr-2 size-4" />
+              Logout
+            </Button>
+            <div className="text-muted-foreground text-xs">
+              Shuttle Management v1.0
+            </div>
           </div>
         </div>
       </SheetContent>
@@ -125,23 +158,25 @@ function MobileSidebar() {
 
 export default function AdminLayout({ children }: PropsWithChildren) {
   return (
-    <SidebarProvider>
-      <div className="flex min-h-screen w-full">
-        <AppSidebar />
-        <div className="flex flex-1 flex-col">
-          <header className="flex h-14 items-center gap-4 border-b px-4 md:px-6">
-            <SidebarTrigger />
-            <div className="md:hidden">
-              <MobileSidebar />
-            </div>
-            <div className="flex-1" />
-            <ModeToggle />
-          </header>
-          <main className="flex-1 p-4 md:p-6">
-            <div className="mx-auto max-w-7xl">{children}</div>
-          </main>
+    <ProtectedRoute>
+      <SidebarProvider>
+        <div className="flex min-h-screen w-full">
+          <AppSidebar />
+          <div className="flex flex-1 flex-col">
+            <header className="flex h-14 items-center gap-4 border-b px-4 md:px-6">
+              <SidebarTrigger />
+              <div className="md:hidden">
+                <MobileSidebar />
+              </div>
+              <div className="flex-1" />
+              <ModeToggle />
+            </header>
+            <main className="flex-1 p-4 md:p-6">
+              <div className="mx-auto max-w-7xl">{children}</div>
+            </main>
+          </div>
         </div>
-      </div>
-    </SidebarProvider>
+      </SidebarProvider>
+    </ProtectedRoute>
   );
 }

@@ -19,6 +19,14 @@ type Shuttle = {
   updatedAt?: number;
 };
 
+interface ShuttleData {
+  lat: number;
+  lng: number;
+  heading?: number;
+  speedKph?: number;
+  updatedAt?: number;
+}
+
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -27,7 +35,7 @@ export default function AdminDashboardPage() {
 
   useMemo(() => {
     const unsub = onValue(ref(rtdb, "/shuttles"), (snap) => {
-      const val = snap.val() as Record<string, any> | null;
+      const val = snap.val() as Record<string, ShuttleData> | null;
       const list: Shuttle[] = val
         ? Object.entries(val).map(([id, v]) => ({
             id,
@@ -145,7 +153,7 @@ export default function AdminDashboardPage() {
                   <Marker
                     key={s.id}
                     position={{ lat: s.lat, lng: s.lng }}
-                    title={`Shuttle ${s.id} - ${s.speedKph || 0} km/h`}
+                    title={`Shuttle ${s.id} - ${s.speedKph ?? 0} km/h`}
                   />
                 ))}
               </GoogleMap>
@@ -172,7 +180,7 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className="font-medium">Shuttle {shuttle.id}</p>
                       <p className="text-muted-foreground text-sm">
-                        {shuttle.speedKph || 0} km/h
+                        {shuttle.speedKph ?? 0} km/h
                       </p>
                     </div>
                     <Badge
