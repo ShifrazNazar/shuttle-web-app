@@ -10,6 +10,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { toast } from "sonner";
 
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
@@ -22,9 +23,6 @@ import {
   Mail,
   GraduationCap,
   Bus,
-  CheckCircle,
-  AlertCircle,
-  X,
   Shield,
   Key,
 } from "lucide-react";
@@ -50,14 +48,6 @@ interface Student {
   updatedAt: Date;
 }
 
-interface Toast {
-  id: string;
-  type: "success" | "error" | "warning";
-  title: string;
-  message: string;
-  show: boolean;
-}
-
 export default function UsersPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
@@ -74,7 +64,6 @@ export default function UsersPage() {
   const [resettingPasswordUser, setResettingPasswordUser] = useState<
     Driver | Student | null
   >(null);
-  const [toasts, setToasts] = useState<Toast[]>([]);
   const [driverFormData, setDriverFormData] = useState({
     email: "",
     username: "",
@@ -94,30 +83,6 @@ export default function UsersPage() {
   useEffect(() => {
     void fetchUsers();
   }, []);
-
-  const showToast = (
-    type: "success" | "error" | "warning",
-    title: string,
-    message: string,
-  ) => {
-    const newToast: Toast = {
-      id: Date.now().toString(),
-      type,
-      title,
-      message,
-      show: true,
-    };
-    setToasts((prev) => [...prev, newToast]);
-
-    // Auto-hide after 7 seconds for longer messages
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== newToast.id));
-    }, 7000);
-  };
-
-  const hideToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
 
   const fetchUsers = async () => {
     try {
@@ -206,25 +171,19 @@ export default function UsersPage() {
               displayName: driverFormData.username,
             });
 
-            showToast(
-              "success",
-              "Driver Updated Successfully!",
-              `Driver profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${driverFormData.email}\n• Display Name: ${driverFormData.username}`,
-            );
+            toast.success("Driver Updated Successfully!", {
+              description: `Driver profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${driverFormData.email}\n• Display Name: ${driverFormData.username}`,
+            });
           } catch (adminError) {
             console.error("Admin API error:", adminError);
-            showToast(
-              "warning",
-              "Driver Partially Updated",
-              `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
-            );
+            toast.warning("Driver Partially Updated", {
+              description: `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
+            });
           }
         } else {
-          showToast(
-            "warning",
-            "Driver Updated (Firestore Only)",
-            `Driver updated in Firestore but no Firebase Auth UID found.\n\nThis might be an older account without proper Auth integration.`,
-          );
+          toast.warning("Driver Updated (Firestore Only)", {
+            description: `Driver updated in Firestore but no Firebase Auth UID found.\n\nThis might be an older account without proper Auth integration.`,
+          });
         }
       } else {
         // Create new driver using backend API
@@ -236,11 +195,9 @@ export default function UsersPage() {
             assignedShuttleId: "", // Will be assigned separately
           });
 
-          showToast(
-            "success",
-            "Driver Created Successfully!",
-            `New driver account created:\n\n📧 Email: ${driverFormData.email}\n👤 Username: ${driverFormData.username}\n🔑 Default Password: Driver123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Assign a bus to the driver\n• Send login credentials to the driver\n• Driver can change password after first login`,
-          );
+          toast.success("Driver Created Successfully!", {
+            description: `New driver account created:\n\n📧 Email: ${driverFormData.email}\n👤 Username: ${driverFormData.username}\n🔑 Default Password: Driver123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Assign a bus to the driver\n• Send login credentials to the driver\n• Driver can change password after first login`,
+          });
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
           let errorMessage = "Failed to create driver account.";
@@ -262,7 +219,9 @@ export default function UsersPage() {
             errorMessage = "Password is too weak (minimum 6 characters).";
           }
 
-          showToast("error", "Account Creation Error", errorMessage);
+          toast.error("Account Creation Error", {
+            description: errorMessage,
+          });
           return;
         }
       }
@@ -277,7 +236,9 @@ export default function UsersPage() {
         error instanceof Error
           ? error.message
           : "An unexpected error occurred.";
-      showToast("error", "Error", errorMessage);
+      toast.error("Error", {
+        description: errorMessage,
+      });
     }
   };
 
@@ -302,18 +263,14 @@ export default function UsersPage() {
               displayName: studentFormData.username,
             });
 
-            showToast(
-              "success",
-              "Student Updated Successfully!",
-              `Student profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${studentFormData.email}\n• Display Name: ${studentFormData.username}`,
-            );
+            toast.success("Student Updated Successfully!", {
+              description: `Student profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${studentFormData.email}\n• Display Name: ${studentFormData.username}`,
+            });
           } catch (adminError) {
             console.error("Admin API error:", adminError);
-            showToast(
-              "warning",
-              "Student Partially Updated",
-              `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
-            );
+            toast.warning("Student Partially Updated", {
+              description: `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
+            });
           }
         }
       } else {
@@ -325,11 +282,9 @@ export default function UsersPage() {
             role: "student",
           });
 
-          showToast(
-            "success",
-            "Student Created Successfully!",
-            `New student account created:\n\n📧 Email: ${studentFormData.email}\n👤 Username: ${studentFormData.username}\n🔑 Default Password: Student123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Send login credentials to the student\n• Student can change password after first login`,
-          );
+          toast.success("Student Created Successfully!", {
+            description: `New student account created:\n\n📧 Email: ${studentFormData.email}\n👤 Username: ${studentFormData.username}\n🔑 Default Password: Student123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Send login credentials to the student\n• Student can change password after first login`,
+          });
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
           let errorMessage = "Failed to create student account.";
@@ -351,7 +306,9 @@ export default function UsersPage() {
             errorMessage = "Password is too weak (minimum 6 characters).";
           }
 
-          showToast("error", "Account Creation Error", errorMessage);
+          toast.error("Account Creation Error", {
+            description: errorMessage,
+          });
           return;
         }
       }
@@ -362,13 +319,12 @@ export default function UsersPage() {
       await fetchUsers();
     } catch (error: unknown) {
       console.error("Error saving student:", error);
-      showToast(
-        "error",
-        "Error",
-        error instanceof Error
-          ? error.message
-          : "An unexpected error occurred.",
-      );
+      toast.error("Error", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred.",
+      });
     }
   };
 
@@ -388,14 +344,14 @@ export default function UsersPage() {
       setAssignBusFormData({ assignedShuttleId: "" });
       await fetchUsers();
 
-      showToast(
-        "success",
-        "Bus Assigned Successfully!",
-        `Bus ${assignBusFormData.assignedShuttleId} has been successfully assigned to ${assigningDriver.username}.\n\nThe driver can now access their assigned bus from their dashboard.`,
-      );
+      toast.success("Bus Assigned Successfully!", {
+        description: `Bus ${assignBusFormData.assignedShuttleId} has been successfully assigned to ${assigningDriver.username}.\n\nThe driver can now access their assigned bus from their dashboard.`,
+      });
     } catch (error) {
       console.error("Error assigning bus:", error);
-      showToast("error", "Error", "Failed to assign bus. Please try again.");
+      toast.error("Error", {
+        description: "Failed to assign bus. Please try again.",
+      });
     }
   };
 
@@ -404,20 +360,16 @@ export default function UsersPage() {
     if (!resettingPasswordUser) return;
 
     if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
-      showToast(
-        "error",
-        "Password Mismatch",
-        "New password and confirmation password do not match.",
-      );
+      toast.error("Password Mismatch", {
+        description: "New password and confirmation password do not match.",
+      });
       return;
     }
 
     if (passwordResetData.newPassword.length < 6) {
-      showToast(
-        "error",
-        "Weak Password",
-        "Password must be at least 6 characters long.",
-      );
+      toast.error("Weak Password", {
+        description: "Password must be at least 6 characters long.",
+      });
       return;
     }
 
@@ -428,17 +380,13 @@ export default function UsersPage() {
           newPassword: passwordResetData.newPassword,
         });
 
-        showToast(
-          "success",
-          "Password Reset Successfully!",
-          `Password has been reset for ${resettingPasswordUser.username}.\n\nNew password: ${passwordResetData.newPassword}\n\n⚠️ Important:\n• Send this password securely to the user\n• The old password no longer works\n• User will need to sign in again\n• Advise them to change password after login`,
-        );
+        toast.success("Password Reset Successfully!", {
+          description: `Password has been reset for ${resettingPasswordUser.username}.\n\nNew password: ${passwordResetData.newPassword}\n\n⚠️ Important:\n• Send this password securely to the user\n• The old password no longer works\n• User will need to sign in again\n• Advise them to change password after login`,
+        });
       } else {
-        showToast(
-          "warning",
-          "Password Reset Not Available",
-          `Cannot reset password for ${resettingPasswordUser.username}.\n\nNo Firebase Auth UID found. This might be an older account without proper Auth integration.`,
-        );
+        toast.warning("Password Reset Not Available", {
+          description: `Cannot reset password for ${resettingPasswordUser.username}.\n\nNo Firebase Auth UID found. This might be an older account without proper Auth integration.`,
+        });
       }
 
       setShowResetPasswordModal(false);
@@ -446,13 +394,12 @@ export default function UsersPage() {
       setPasswordResetData({ newPassword: "", confirmPassword: "" });
     } catch (error: unknown) {
       console.error("Error resetting password:", error);
-      showToast(
-        "error",
-        "Password Reset Failed",
-        error instanceof Error
-          ? error.message
-          : "Failed to reset password. Please try again.",
-      );
+      toast.error("Password Reset Failed", {
+        description:
+          error instanceof Error
+            ? error.message
+            : "Failed to reset password. Please try again.",
+      });
     }
   };
 
@@ -481,18 +428,15 @@ export default function UsersPage() {
       await deleteDoc(doc(db, "users", driverId));
 
       await fetchUsers();
-      showToast(
-        "success",
-        "Driver Deleted Successfully",
-        `${driver.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${driver.uid ? "Deleted" : "Not applicable"}\n✓ Bus Assignment: Cleared`,
-      );
+      toast.success("Driver Deleted Successfully", {
+        description: `${driver.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${driver.uid ? "Deleted" : "Not applicable"}\n✓ Bus Assignment: Cleared`,
+      });
     } catch (error) {
       console.error("Error deleting driver:", error);
-      showToast(
-        "error",
-        "Deletion Failed",
-        "Failed to delete driver account completely. Some data may still exist.",
-      );
+      toast.error("Deletion Failed", {
+        description:
+          "Failed to delete driver account completely. Some data may still exist.",
+      });
     }
   };
 
@@ -521,18 +465,15 @@ export default function UsersPage() {
       await deleteDoc(doc(db, "users", studentId));
 
       await fetchUsers();
-      showToast(
-        "success",
-        "Student Deleted Successfully",
-        `${student.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${student.uid ? "Deleted" : "Not applicable"}`,
-      );
+      toast.success("Student Deleted Successfully", {
+        description: `${student.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${student.uid ? "Deleted" : "Not applicable"}`,
+      });
     } catch (error) {
       console.error("Error deleting student:", error);
-      showToast(
-        "error",
-        "Deletion Failed",
-        "Failed to delete student account completely. Some data may still exist.",
-      );
+      toast.error("Deletion Failed", {
+        description:
+          "Failed to delete student account completely. Some data may still exist.",
+      });
     }
   };
 
@@ -614,42 +555,6 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-8">
-      {/* Toast Notifications */}
-      <div className="fixed top-4 right-4 z-50 max-w-md space-y-2">
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={`flex items-start gap-3 rounded-lg border p-4 shadow-lg transition-all duration-300 ${
-              toast.type === "success"
-                ? "border-green-200 bg-green-50 text-green-800"
-                : toast.type === "warning"
-                  ? "border-yellow-200 bg-yellow-50 text-yellow-800"
-                  : "border-red-200 bg-red-50 text-red-800"
-            }`}
-          >
-            {toast.type === "success" ? (
-              <CheckCircle className="h-5 w-5 flex-shrink-0 text-green-600" />
-            ) : toast.type === "warning" ? (
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-yellow-600" />
-            ) : (
-              <AlertCircle className="h-5 w-5 flex-shrink-0 text-red-600" />
-            )}
-            <div className="min-w-0 flex-1">
-              <h4 className="font-medium">{toast.title}</h4>
-              <p className="mt-1 text-sm break-words whitespace-pre-line">
-                {toast.message}
-              </p>
-            </div>
-            <button
-              onClick={() => hideToast(toast.id)}
-              className="text-muted-foreground hover:text-foreground flex-shrink-0"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-        ))}
-      </div>
-
       <div className="flex items-center justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-semibold">
@@ -1212,7 +1117,7 @@ export default function UsersPage() {
                 <br />
                 <strong>⚠️ Security Notice:</strong>
                 <br />• This will immediately change the user&apos;s password
-                <br />• The old password will no longer work
+                <br />• The old password will no longer works
                 <br />• Send the new password securely to the user
                 <br />• Advise them to change it after login
               </p>

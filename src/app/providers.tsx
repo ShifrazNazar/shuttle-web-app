@@ -3,6 +3,7 @@
 import { useState, type PropsWithChildren } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ThemeProvider } from "next-themes";
+import { Toaster } from "sonner";
 import { AuthProvider } from "~/components/auth-provider";
 
 export default function Providers({ children }: PropsWithChildren) {
@@ -11,7 +12,10 @@ export default function Providers({ children }: PropsWithChildren) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <QueryClientProvider client={queryClient}>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          {children}
+          <Toaster richColors position="top-right" />
+        </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
   );
