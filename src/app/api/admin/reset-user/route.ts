@@ -53,6 +53,14 @@ export async function POST(request: NextRequest) {
       password: newPassword,
     });
 
+    // Update the Firestore document to reflect the password change
+    const { adminDb } = initializeFirebaseAdmin();
+    const userRef = adminDb.collection("users").doc(uid);
+    await userRef.update({
+      updatedAt: new Date(),
+      passwordResetAt: new Date(),
+    });
+
     // Log the password reset for audit purposes (don't log the actual password)
     console.log(`Password reset successfully:`, {
       uid,

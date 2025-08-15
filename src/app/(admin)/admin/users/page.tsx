@@ -154,8 +154,12 @@ export default function UsersPage() {
     e.preventDefault();
     try {
       if (editingDriver) {
-        // Update existing driver
-        const driverRef = doc(db, "users", editingDriver.id);
+        // Update existing driver using UID as document ID
+        const driverRef = doc(
+          db,
+          "users",
+          editingDriver.uid || editingDriver.id,
+        );
         await updateDoc(driverRef, {
           email: driverFormData.email,
           username: driverFormData.username,
@@ -246,8 +250,12 @@ export default function UsersPage() {
     e.preventDefault();
     try {
       if (editingStudent) {
-        // Update existing student
-        const studentRef = doc(db, "users", editingStudent.id);
+        // Update existing student using UID as document ID
+        const studentRef = doc(
+          db,
+          "users",
+          editingStudent.uid || editingStudent.id,
+        );
         await updateDoc(studentRef, {
           email: studentFormData.email,
           username: studentFormData.username,
@@ -333,7 +341,11 @@ export default function UsersPage() {
     if (!assigningDriver) return;
 
     try {
-      const driverRef = doc(db, "users", assigningDriver.id);
+      const driverRef = doc(
+        db,
+        "users",
+        assigningDriver.uid || assigningDriver.id,
+      );
       await updateDoc(driverRef, {
         assignedShuttleId: assignBusFormData.assignedShuttleId,
         updatedAt: new Date(),
@@ -424,8 +436,8 @@ export default function UsersPage() {
         }
       }
 
-      // Delete from Firestore
-      await deleteDoc(doc(db, "users", driverId));
+      // Delete from Firestore using the UID as document ID
+      await deleteDoc(doc(db, "users", driver.uid || driverId));
 
       await fetchUsers();
       toast.success("Driver Deleted Successfully", {
@@ -461,8 +473,8 @@ export default function UsersPage() {
         }
       }
 
-      // Delete from Firestore
-      await deleteDoc(doc(db, "users", studentId));
+      // Delete from Firestore using the UID as document ID
+      await deleteDoc(doc(db, "users", student.uid || studentId));
 
       await fetchUsers();
       toast.success("Student Deleted Successfully", {

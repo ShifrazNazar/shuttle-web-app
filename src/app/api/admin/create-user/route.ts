@@ -98,14 +98,14 @@ export async function POST(request: NextRequest) {
       ...(role === "driver" && { assignedShuttleId }),
     };
 
-    // Add user to Firestore
-    const userRef = await adminDb.collection("users").add(userData);
+    // Add user to Firestore with the Auth UID as the document ID so clients can look it up directly
+    await adminDb.collection("users").doc(userRecord.uid).set(userData);
 
     return NextResponse.json({
       success: true,
       message: `${role.charAt(0).toUpperCase() + role.slice(1)} created successfully`,
       user: {
-        id: userRef.id,
+        id: userRecord.uid,
         uid: userRecord.uid,
         email: userRecord.email,
         username: userRecord.displayName,

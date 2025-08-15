@@ -54,6 +54,22 @@ export async function POST(request: NextRequest) {
     // Update user in Firebase Auth
     const updatedUser = await adminAuth.updateUser(uid, updateData);
 
+    // Also update the corresponding Firestore document
+    const { adminDb } = initializeFirebaseAdmin();
+    const userRef = adminDb.collection("users").doc(uid);
+    const updateDataFirestore: Record<string, unknown> = {
+      updatedAt: new Date(),
+    };
+
+    if (email !== undefined) {
+      updateDataFirestore.email = email;
+    }
+    if (displayName !== undefined) {
+      updateDataFirestore.username = displayName;
+    }
+
+    await userRef.update(updateDataFirestore);
+
     return NextResponse.json({
       success: true,
       message: "User updated successfully",
