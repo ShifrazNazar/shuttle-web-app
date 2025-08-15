@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
     let userInfo;
     try {
       userInfo = await adminAuth.getUser(uid);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "User not found in Firebase Auth" },
         { status: 404 },

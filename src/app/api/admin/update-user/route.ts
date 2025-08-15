@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
     // Check if user exists before updating
     try {
       await adminAuth.getUser(uid);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "User not found in Firebase Auth" },
         { status: 404 },
