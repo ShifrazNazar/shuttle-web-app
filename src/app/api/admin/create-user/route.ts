@@ -95,6 +95,7 @@ export async function POST(request: NextRequest) {
       createdAt: new Date(),
       updatedAt: new Date(),
       defaultPassword,
+      passwordChanged: false, // Track if user has changed their default password
       ...(role === "driver" && { assignedShuttleId }),
     };
 
