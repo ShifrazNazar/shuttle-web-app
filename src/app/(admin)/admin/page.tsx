@@ -15,17 +15,11 @@ type Shuttle = {
   lat: number;
   lng: number;
   heading?: number;
-  speedKph?: number;
   updatedAt?: number;
+  driverId: string;
+  username?: string;
+  isActive: boolean;
 };
-
-interface ShuttleData {
-  lat: number;
-  lng: number;
-  heading?: number;
-  speedKph?: number;
-  updatedAt?: number;
-}
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
@@ -34,16 +28,18 @@ export default function AdminDashboardPage() {
   const [shuttles, setShuttles] = useState<Shuttle[]>([]);
 
   useMemo(() => {
-    const unsub = onValue(ref(rtdb, "/shuttles"), (snap) => {
-      const val = snap.val() as Record<string, ShuttleData> | null;
+    const unsub = onValue(ref(rtdb, "/activeDrivers"), (snap) => {
+      const val = snap.val() as Record<string, any> | null;
       const list: Shuttle[] = val
-        ? Object.entries(val).map(([id, v]) => ({
-            id,
-            lat: v.lat,
-            lng: v.lng,
+        ? Object.entries(val).map(([driverId, v]) => ({
+            id: v.busId || driverId,
+            lat: v.latitude,
+            lng: v.longitude,
             heading: v.heading,
-            speedKph: v.speedKph,
-            updatedAt: v.updatedAt,
+            updatedAt: v.timestamp,
+            driverId: driverId,
+            driverEmail: v.driverEmail,
+            isActive: v.isActive,
           }))
         : [];
       setShuttles(list);
@@ -51,8 +47,8 @@ export default function AdminDashboardPage() {
     return () => unsub();
   }, []);
 
-  const center = useMemo(() => ({ lat: 37.7749, lng: -122.4194 }), []);
-  const activeShuttles = shuttles.filter((s) => s.speedKph && s.speedKph > 0);
+  const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
+  const activeShuttles = shuttles.filter((s) => s.isActive);
   const totalPassengers = 234; // Mock data
   const averageWaitTime = 8; // Mock data
 
@@ -145,7 +141,7 @@ export default function AdminDashboardPage() {
           <CardContent>
             <div className="h-[60vh] w-full overflow-hidden rounded-md">
               <GoogleMap
-                zoom={12}
+                zoom={16}
                 center={center}
                 mapContainerClassName="h-full w-full"
               >
@@ -153,7 +149,7 @@ export default function AdminDashboardPage() {
                   <Marker
                     key={s.id}
                     position={{ lat: s.lat, lng: s.lng }}
-                    title={`Shuttle ${s.id} - ${s.speedKph ?? 0} km/h`}
+                    title={s.driverEmail}
                   />
                 ))}
               </GoogleMap>
@@ -180,19 +176,17 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className="font-medium">Shuttle {shuttle.id}</p>
                       <p className="text-muted-foreground text-sm">
-                        {shuttle.speedKph ?? 0} km/h
+                        Driver: {shuttle.username}
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        {shuttle.isActive ? "Active" : "Inactive"} •{" "}
+                        {shuttle.updatedAt
+                          ? new Date(shuttle.updatedAt).toLocaleTimeString()
+                          : "N/A"}
                       </p>
                     </div>
-                    <Badge
-                      variant={
-                        shuttle.speedKph && shuttle.speedKph > 0
-                          ? "default"
-                          : "secondary"
-                      }
-                    >
-                      {shuttle.speedKph && shuttle.speedKph > 0
-                        ? "Moving"
-                        : "Stopped"}
+                    <Badge variant={shuttle.isActive ? "default" : "secondary"}>
+                      {shuttle.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 ))
