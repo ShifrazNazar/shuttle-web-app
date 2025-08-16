@@ -633,14 +633,26 @@ export default function RoutesPage() {
         priority: existingAssignments.length + 1, // Assign priority based on order
       };
 
-      // Check if driver is already assigned to this route
-      const driverAlreadyAssigned = existingAssignments.find(
+      // Check if driver is already assigned to this specific route
+      const driverAlreadyAssignedToThisRoute = existingAssignments.find(
         (a) => a.driverId === selectedDriver.id && a.status === "active",
       );
 
-      if (driverAlreadyAssigned) {
+      if (driverAlreadyAssignedToThisRoute) {
         toast.error("This driver is already assigned to this route.");
         return;
+      }
+
+      // Check if driver has too many route assignments (optional limit)
+      const driverTotalAssignments = routeAssignments.filter(
+        (a) => a.driverId === selectedDriver.id && a.status === "active",
+      );
+
+      if (driverTotalAssignments.length >= 3) {
+        toast.warning("Driver has many route assignments", {
+          description: `${selectedDriver.username} is already assigned to ${driverTotalAssignments.length} routes. Consider workload balance.`,
+        });
+        // Continue with assignment but show warning
       }
 
       // Create new assignment
@@ -666,9 +678,14 @@ export default function RoutesPage() {
     return drivers.filter(
       (driver) =>
         driver.assignedShuttleId && // Must have a bus assigned
+        // Allow drivers to be assigned to multiple routes
+        // Only check if they're already assigned to THIS specific route
         !routeAssignments.some(
-          (a) => a.driverId === driver.id && a.status === "active",
-        ), // Not already assigned to this specific route
+          (a) =>
+            a.driverId === driver.id &&
+            a.status === "active" &&
+            a.routeId === assigningRoute?.routeId,
+        ),
     );
   };
 
@@ -684,6 +701,22 @@ export default function RoutesPage() {
       assignedRouteId: assignment.routeId,
       priority: assignment.priority || 1,
     }));
+  };
+
+  const getDriverRouteAssignments = (driverId: string) => {
+    return routeAssignments.filter(
+      (a) => a.driverId === driverId && a.status === "active",
+    );
+  };
+
+  const getRelatedRoutes = (route: RouteData) => {
+    // Find routes that are the reverse of this route (e.g., APU to LRT and LRT to APU)
+    return routes.filter(
+      (otherRoute) =>
+        otherRoute.routeId !== route.routeId &&
+        otherRoute.origin === route.destination &&
+        otherRoute.destination === route.origin,
+    );
   };
 
   const handleDeleteConfirm = (routeId: string, driverId?: string) => {
@@ -975,17 +1008,6 @@ export default function RoutesPage() {
                 <div className="flex items-center gap-2">
                   <Car className="text-muted-foreground h-4 w-4" />
                   <div className="flex-1">
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-sm font-medium">
-                        Driver Assignments
-                      </span>
-                      <Badge variant="outline" className="text-xs">
-                        {getDriversByRouteId(route.routeId).length} driver
-                        {getDriversByRouteId(route.routeId).length !== 1
-                          ? "s"
-                          : ""}
-                      </Badge>
-                    </div>
                     {(() => {
                       const assignedDrivers = getDriversByRouteId(
                         route.routeId,
@@ -993,68 +1015,38 @@ export default function RoutesPage() {
                       return assignedDrivers.length > 0 ? (
                         <div className="space-y-2">
                           {assignedDrivers.map((driver, index) => (
-                            <div key={driver.id} className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <Badge variant="default" className="text-xs">
-                                    Driver {driver.priority || index + 1}
-                                  </Badge>
-                                  <span className="text-sm">
-                                    {driver.username} (
-                                    {driver.assignedShuttleId})
-                                  </span>
-                                </div>
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  onClick={() =>
-                                    handleDeleteConfirm(
-                                      route.routeId,
-                                      driver.id,
-                                    )
-                                  }
-                                  className="text-red-600 hover:text-red-700"
-                                  disabled={currentAdminUser?.role !== "admin"}
-                                  title={
-                                    currentAdminUser?.role !== "admin"
-                                      ? "Admin access required"
-                                      : "Delete this driver assignment"
-                                  }
-                                >
-                                  Remove
-                                </Button>
+                            <div
+                              key={driver.id}
+                              className="flex items-center justify-between"
+                            >
+                              <div className="flex items-center gap-2">
+                                <Badge variant="default" className="text-xs">
+                                  {driver.username}
+                                </Badge>
+                                <span className="text-muted-foreground text-sm">
+                                  Bus {driver.assignedShuttleId}
+                                </span>
                               </div>
-
-                              {/* Assignment Details */}
-                              {(() => {
-                                const assignment = routeAssignments.find(
-                                  (a) =>
-                                    a.routeId === route.routeId &&
-                                    a.driverId === driver.id,
-                                );
-                                return assignment ? (
-                                  <div className="text-muted-foreground space-y-1 text-xs">
-                                    <div>
-                                      Assigned:{" "}
-                                      {assignment.assignedAt
-                                        .toDate()
-                                        .toLocaleDateString()}
-                                    </div>
-                                    <div>By: {assignment.assignedBy}</div>
-                                  </div>
-                                ) : null;
-                              })()}
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleDeleteConfirm(route.routeId, driver.id)
+                                }
+                                className="text-red-600 hover:text-red-700"
+                                disabled={currentAdminUser?.role !== "admin"}
+                                title="Remove driver"
+                              >
+                                Remove
+                              </Button>
                             </div>
                           ))}
                         </div>
                       ) : (
                         <div className="flex items-center gap-2">
                           <Badge variant="outline" className="text-xs">
-                            Unassigned
+                            No drivers
                           </Badge>
-                          <span className="text-muted-foreground text-sm">
-                            No drivers assigned
-                          </span>
                         </div>
                       );
                     })()}
@@ -1063,11 +1055,8 @@ export default function RoutesPage() {
 
                 {/* Special Notes */}
                 {route.specialNotes && (
-                  <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2">
-                    <AlertCircle className="mt-0.5 h-4 w-4 text-amber-600" />
-                    <span className="text-sm text-amber-800">
-                      {route.specialNotes}
-                    </span>
+                  <div className="text-xs text-amber-600">
+                    ⚠️ {route.specialNotes}
                   </div>
                 )}
 
@@ -1075,27 +1064,16 @@ export default function RoutesPage() {
 
                 {/* Actions */}
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" className="flex-1">
-                    <MapPin className="mr-2 h-4 w-4" />
-                    View Map
-                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     className="flex-1"
                     onClick={() => handleAssignDriver(route)}
                     disabled={currentAdminUser?.role !== "admin"}
-                    title={
-                      currentAdminUser?.role !== "admin"
-                        ? "Admin access required"
-                        : "Assign a driver to this route"
-                    }
+                    title="Assign a driver to this route"
                   >
                     <Users className="mr-2 h-4 w-4" />
                     Assign Driver
-                  </Button>
-                  <Button variant="outline" size="sm">
-                    <Timer className="h-4 w-4" />
                   </Button>
                 </div>
               </CardContent>
@@ -1157,16 +1135,10 @@ export default function RoutesPage() {
                 return currentDrivers.length > 0 ? (
                   <div className="mt-3 rounded-lg border border-yellow-200 bg-yellow-50 p-3">
                     <p className="text-sm text-yellow-800">
-                      <strong>Currently Assigned Drivers:</strong>
-                      {currentDrivers.map((driver, index) => (
-                        <div key={driver.id} className="mt-1">
-                          {index + 1}. {driver.username} (Bus{" "}
-                          {driver.assignedShuttleId})
-                        </div>
-                      ))}
+                      <strong>Current Drivers:</strong> {currentDrivers.length}
                       <br />
                       <span className="text-xs">
-                        You can assign multiple drivers to this route.
+                        You can assign more drivers to this route.
                       </span>
                     </p>
                   </div>
