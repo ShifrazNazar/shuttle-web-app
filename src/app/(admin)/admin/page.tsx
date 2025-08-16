@@ -17,7 +17,7 @@ type Shuttle = {
   heading?: number;
   updatedAt?: number;
   driverId: string;
-  username?: string;
+  driverEmail?: string;
   isActive: boolean;
 };
 
@@ -149,7 +149,7 @@ export default function AdminDashboardPage() {
                   <Marker
                     key={s.id}
                     position={{ lat: s.lat, lng: s.lng }}
-                    title={s.driverEmail}
+                    title={`${s.driverEmail} - ${s.isActive ? "Active" : "Inactive"}`}
                   />
                 ))}
               </GoogleMap>
@@ -176,7 +176,7 @@ export default function AdminDashboardPage() {
                     <div>
                       <p className="font-medium">Shuttle {shuttle.id}</p>
                       <p className="text-muted-foreground text-sm">
-                        Driver: {shuttle.username}
+                        Driver: {shuttle.driverEmail}
                       </p>
                       <p className="text-muted-foreground text-xs">
                         {shuttle.isActive ? "Active" : "Inactive"} •{" "}
