@@ -75,6 +75,30 @@ export default function UsersPage() {
   const [assignBusFormData, setAssignBusFormData] = useState({
     assignedShuttleId: "",
   });
+
+  // Predefined list of available bus IDs
+  const availableBusIds = [
+    "B001",
+    "B002",
+    "B003",
+    "B004",
+    "B005",
+    "B006",
+    "B007",
+    "B008",
+    "B009",
+    "B010",
+    "B011",
+    "B012",
+    "B013",
+    "B014",
+    "B015",
+    "B016",
+    "B017",
+    "B018",
+    "B019",
+    "B020",
+  ];
   const [passwordResetData, setPasswordResetData] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -346,8 +370,11 @@ export default function UsersPage() {
         "users",
         assigningDriver.uid || assigningDriver.id,
       );
+
+      const newAssignment = assignBusFormData.assignedShuttleId;
+
       await updateDoc(driverRef, {
-        assignedShuttleId: assignBusFormData.assignedShuttleId,
+        assignedShuttleId: newAssignment,
         updatedAt: new Date(),
       });
 
@@ -356,9 +383,15 @@ export default function UsersPage() {
       setAssignBusFormData({ assignedShuttleId: "" });
       await fetchUsers();
 
-      toast.success("Bus Assigned Successfully!", {
-        description: `Bus ${assignBusFormData.assignedShuttleId} has been successfully assigned to ${assigningDriver.username}.\n\nThe driver can now access their assigned bus from their dashboard.`,
-      });
+      if (newAssignment) {
+        toast.success("Bus Assigned Successfully!", {
+          description: `Bus ${newAssignment} has been successfully assigned to ${assigningDriver.username}.\n\nThe driver can now access their assigned bus from their dashboard.`,
+        });
+      } else {
+        toast.success("Bus Assignment Cleared!", {
+          description: `Bus assignment has been removed from ${assigningDriver.username}.\n\nThe driver no longer has access to any assigned bus.`,
+        });
+      }
     } catch (error) {
       console.error("Error assigning bus:", error);
       toast.error("Error", {
@@ -578,6 +611,28 @@ export default function UsersPage() {
             accounts, assign buses, reset passwords, and manage user profiles
             with full admin privileges and server-side security.
           </p>
+          <div className="mt-2 flex gap-4 text-xs">
+            <span className="text-muted-foreground">
+              🚌 Total Fleet: {availableBusIds.length} buses
+            </span>
+            <span className="text-green-600">
+              🟢 Available:{" "}
+              {
+                availableBusIds.filter(
+                  (busId) =>
+                    !drivers.some(
+                      (driver) => driver.assignedShuttleId === busId,
+                    ),
+                ).length
+              }{" "}
+              buses
+            </span>
+            <span className="text-red-600">
+              🔴 Assigned:{" "}
+              {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
+              buses
+            </span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button onClick={() => setShowAddDriverModal(true)}>
@@ -1070,23 +1125,96 @@ export default function UsersPage() {
               </p>
             </div>
 
+            {/* Bus Availability Info */}
+            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-800">
+                <strong>Bus Fleet Status:</strong>
+                <br />
+                <span className="text-green-600">🟢 Available:</span>{" "}
+                {
+                  availableBusIds.filter(
+                    (busId) =>
+                      !drivers.some(
+                        (driver) => driver.assignedShuttleId === busId,
+                      ),
+                  ).length
+                }{" "}
+                buses
+                <br />
+                <span className="text-red-600">🔴 Assigned:</span>{" "}
+                {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
+                buses
+                <br />
+                <span className="text-xs">
+                  Total fleet: {availableBusIds.length} buses
+                </span>
+              </p>
+            </div>
+
             <form onSubmit={handleAssignBus} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">
-                  Bus ID *
+                  Select Bus {!assigningDriver?.assignedShuttleId && "*"}
                 </label>
-                <input
-                  type="text"
-                  required
+                <select
+                  required={!assigningDriver?.assignedShuttleId}
                   value={assignBusFormData.assignedShuttleId}
                   onChange={(e) =>
                     setAssignBusFormData({ assignedShuttleId: e.target.value })
                   }
                   className="border-input bg-background text-foreground focus:ring-ring w-full rounded-md border px-3 py-2 focus:border-transparent focus:ring-2 focus:outline-none"
-                  placeholder="e.g., B001, B002, BUS-001"
-                />
+                >
+                  <option value="">Choose a bus...</option>
+                  <optgroup label="🟢 Available Buses">
+                    {availableBusIds
+                      .filter(
+                        (busId) =>
+                          !drivers.some(
+                            (driver) =>
+                              driver.assignedShuttleId === busId &&
+                              driver.id !== assigningDriver?.id,
+                          ),
+                      )
+                      .map((busId) => (
+                        <option key={busId} value={busId}>
+                          {busId} - Available
+                        </option>
+                      ))}
+                  </optgroup>
+                  {assigningDriver?.assignedShuttleId && (
+                    <optgroup label="🟡 Current Assignment">
+                      <option value={assigningDriver.assignedShuttleId}>
+                        {assigningDriver.assignedShuttleId} - Currently Assigned
+                        (Keep)
+                      </option>
+                      <option value="">🚫 Clear Assignment (Remove Bus)</option>
+                    </optgroup>
+                  )}
+                  <optgroup label="🔴 Currently Assigned">
+                    {availableBusIds
+                      .filter((busId) =>
+                        drivers.some(
+                          (driver) =>
+                            driver.assignedShuttleId === busId &&
+                            driver.id !== assigningDriver?.id,
+                        ),
+                      )
+                      .map((busId) => {
+                        const assignedDriver = drivers.find(
+                          (driver) =>
+                            driver.assignedShuttleId === busId &&
+                            driver.id !== assigningDriver?.id,
+                        );
+                        return (
+                          <option key={busId} value={busId} disabled>
+                            {busId} - Assigned to {assignedDriver?.username}
+                          </option>
+                        );
+                      })}
+                  </optgroup>
+                </select>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Enter the unique identifier for the bus
+                  Select from available bus fleet
                 </p>
               </div>
 
