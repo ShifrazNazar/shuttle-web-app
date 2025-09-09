@@ -9,6 +9,8 @@ import {
   doc,
   query,
   where,
+  writeBatch,
+  getDoc,
 } from "firebase/firestore";
 import { toast } from "sonner";
 
@@ -148,6 +150,57 @@ export default function UsersPage() {
     }
   };
 
+  // Helper function to update route assignments when driver info changes
+  const updateRouteAssignmentsForDriver = async (
+    driverId: string,
+    newBusId?: string,
+  ) => {
+    try {
+      // Get all route assignments for this driver
+      const routeAssignmentsRef = collection(db, "routeAssignments");
+      const routeAssignmentsQuery = query(
+        routeAssignmentsRef,
+        where("driverId", "==", driverId),
+        where("status", "==", "active"),
+      );
+      const routeAssignmentsSnapshot = await getDocs(routeAssignmentsQuery);
+
+      if (routeAssignmentsSnapshot.empty) {
+        return; // No route assignments to update
+      }
+
+      // Get updated driver info
+      const driverRef = doc(db, "users", driverId);
+      const driverDoc = await getDoc(driverRef);
+      const driverData = driverDoc.exists() ? driverDoc.data() : null;
+
+      if (!driverData) {
+        console.error("Driver data not found for route assignment update");
+        return;
+      }
+
+      // Update all route assignments for this driver
+      const batch = writeBatch(db);
+      routeAssignmentsSnapshot.docs.forEach((assignmentDoc) => {
+        const assignmentRef = doc(db, "routeAssignments", assignmentDoc.id);
+        batch.update(assignmentRef, {
+          driverEmail: driverData.email,
+          driverUsername: driverData.username,
+          busId: newBusId || driverData.assignedShuttleId,
+          updatedAt: new Date(),
+        });
+      });
+
+      await batch.commit();
+      console.log(
+        `Updated ${routeAssignmentsSnapshot.docs.length} route assignments for driver ${driverId}`,
+      );
+    } catch (error) {
+      console.error("Error updating route assignments:", error);
+      // Don't throw error here as it's not critical for the main operation
+    }
+  };
+
   // Admin function to call backend API for user management
   const callAdminAPI = async (
     endpoint: string,
@@ -189,6 +242,12 @@ export default function UsersPage() {
           username: driverFormData.username,
           updatedAt: new Date(),
         });
+
+        // Update route assignments with new driver info
+        await updateRouteAssignmentsForDriver(
+          editingDriver.uid || editingDriver.id,
+          editingDriver.assignedShuttleId,
+        );
 
         // Update Firebase Auth profile using admin API
         if (editingDriver.uid) {
@@ -377,6 +436,12 @@ export default function UsersPage() {
         assignedShuttleId: newAssignment,
         updatedAt: new Date(),
       });
+
+      // Update route assignments with new bus ID
+      await updateRouteAssignmentsForDriver(
+        assigningDriver.uid || assigningDriver.id,
+        newAssignment,
+      );
 
       setShowAssignBusModal(false);
       setAssigningDriver(null);

@@ -111,6 +111,20 @@ export default function RoutesPage() {
     }
   }, [user]);
 
+  // Refresh data when the page becomes visible (useful for updates from other tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDrivers();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
   const fetchCurrentAdminUser = async () => {
     if (!user?.uid) return;
 
