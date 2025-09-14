@@ -13,7 +13,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { showToast } from "~/lib/toast";
-import { useAvailableShuttles } from "~/hooks/use-shuttles";
+import { useAvailableShuttles, useShuttles } from "~/hooks/use-shuttles";
 
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
@@ -39,6 +39,9 @@ export default function UsersPage() {
   // Get available shuttles from Firestore
   const { availableShuttles, loading: shuttlesLoading } =
     useAvailableShuttles();
+
+  // Get all shuttles for display details
+  const { shuttles } = useShuttles();
   const [driverSearchTerm, setDriverSearchTerm] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
@@ -394,8 +397,7 @@ export default function UsersPage() {
     }
   };
 
-  const handleAssignBus = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAssignBus = async () => {
     if (!assigningDriver) return;
 
     try {
@@ -600,6 +602,15 @@ export default function UsersPage() {
     return matchesSearch;
   });
 
+  // Helper function to get shuttle details
+  const getShuttleDetails = (shuttleId: string) => {
+    const shuttle =
+      availableShuttles.find((s) => s.id === shuttleId) ||
+      shuttles.find((s) => s.id === shuttleId);
+    if (!shuttle) return `Bus ${shuttleId}`;
+    return `${shuttle.licensePlate} - ${shuttle.model} (${shuttle.year})`;
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -714,19 +725,13 @@ export default function UsersPage() {
                             <Mail className="h-3 w-3" />
                             {driver.email}
                           </div>
-                          {driver.uid && (
-                            <div className="text-muted-foreground flex items-center gap-1 text-xs">
-                              <Shield className="h-3 w-3" />
-                              Auth: ✓
-                            </div>
-                          )}
                         </div>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       {driver.assignedShuttleId ? (
                         <div className="inline-block rounded-full bg-blue-100 px-3 py-1 text-sm font-medium text-blue-800">
-                          Bus {driver.assignedShuttleId}
+                          {getShuttleDetails(driver.assignedShuttleId)}
                         </div>
                       ) : (
                         <span className="text-muted-foreground text-sm">
@@ -1118,135 +1123,97 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Assign Bus Modal */}
+      {/* Assign Shuttle Modal */}
       {showAssignBusModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6">
-            <h2 className="mb-4 text-xl font-semibold">
-              Assign Shuttle to Driver
-            </h2>
-
-            <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
-              <p className="text-sm text-blue-800">
-                <strong>Driver:</strong> {assigningDriver?.username}
-                <br />
-                <strong>Email:</strong> {assigningDriver?.email}
-                <br />
-                <strong>Current Assignment:</strong>{" "}
-                {assigningDriver?.assignedShuttleId ?? "None"}
-              </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            {/* Header */}
+            <div className="rounded-t-xl border-b bg-blue-50 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                  <span className="text-xl text-blue-600">🚌</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Assign Shuttle
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {assigningDriver?.username}
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {/* Bus Availability Info */}
-            <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
-              <p className="text-sm text-amber-800">
-                <strong>Shuttle Fleet Status:</strong>
-                <br />
-                <span className="text-green-600">🟢 Available:</span>{" "}
-                {availableShuttles.length} shuttles
-                <br />
-                <span className="text-red-600">🔴 Assigned:</span>{" "}
-                {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
-                shuttles
-                <br />
-                <span className="text-xs">
-                  Total fleet:{" "}
-                  {availableShuttles.length +
-                    drivers.filter((d) => d.assignedShuttleId).length}{" "}
-                  shuttles
-                </span>
-                {shuttlesLoading && (
-                  <>
-                    <br />
-                    <span className="text-xs text-blue-600">
-                      ⏳ Loading shuttle data...
-                    </span>
-                  </>
-                )}
-              </p>
-            </div>
+            {/* Content */}
+            <div className="space-y-4 p-6">
+              {/* Current Assignment */}
+              {assigningDriver?.assignedShuttleId && (
+                <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-800">
+                    <strong>Current:</strong>{" "}
+                    {getShuttleDetails(assigningDriver.assignedShuttleId)}
+                  </p>
+                </div>
+              )}
 
-            <form onSubmit={handleAssignBus} className="space-y-4">
+              {/* Shuttle Selection */}
               <div>
-                <label className="mb-1 block text-sm font-medium">
-                  Select Shuttle {!assigningDriver?.assignedShuttleId && "*"}
+                <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                  Select Shuttle
                 </label>
                 <select
-                  required={!assigningDriver?.assignedShuttleId}
                   value={assignBusFormData.assignedShuttleId}
                   onChange={(e) =>
                     setAssignBusFormData({ assignedShuttleId: e.target.value })
                   }
-                  className="border-input bg-background text-foreground focus:ring-ring w-full rounded-md border px-3 py-2 focus:border-transparent focus:ring-2 focus:outline-none"
+                  className="mt-2 w-full rounded-lg border border-gray-300 bg-white p-3 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none"
                   disabled={shuttlesLoading}
                 >
                   <option value="">
-                    {shuttlesLoading
-                      ? "Loading shuttles..."
-                      : "Choose a shuttle..."}
+                    {shuttlesLoading ? "Loading..." : "Choose shuttle..."}
                   </option>
-                  <optgroup label="🟢 Available Shuttles">
-                    {availableShuttles.map((shuttle) => (
-                      <option key={shuttle.id} value={shuttle.id}>
-                        {shuttle.licensePlate} -{" "}
-                        {shuttle.model || "Unknown Model"} (Capacity:{" "}
-                        {shuttle.capacity})
-                      </option>
-                    ))}
-                  </optgroup>
+                  {availableShuttles.map((shuttle) => (
+                    <option key={shuttle.id} value={shuttle.id}>
+                      {shuttle.licensePlate} - {shuttle.model} (
+                      {shuttle.capacity} seats)
+                    </option>
+                  ))}
                   {assigningDriver?.assignedShuttleId && (
-                    <optgroup label="🟡 Current Assignment">
-                      <option value={assigningDriver.assignedShuttleId}>
-                        {assigningDriver.assignedShuttleId} - Currently Assigned
-                        (Keep)
-                      </option>
-                      <option value="">
-                        🚫 Clear Assignment (Remove Shuttle)
-                      </option>
-                    </optgroup>
+                    <option value="">Remove Assignment</option>
                   )}
-                  <optgroup label="🔴 Currently Assigned">
-                    {drivers
-                      .filter(
-                        (driver) =>
-                          driver.assignedShuttleId &&
-                          driver.id !== assigningDriver?.id,
-                      )
-                      .map((driver) => (
-                        <option
-                          key={driver.assignedShuttleId}
-                          value={driver.assignedShuttleId}
-                          disabled
-                        >
-                          {driver.assignedShuttleId} - Assigned to{" "}
-                          {driver.username}
-                        </option>
-                      ))}
-                  </optgroup>
                 </select>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  Select from available shuttle fleet
-                </p>
               </div>
 
-              <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  Assign Shuttle
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => {
-                    setShowAssignBusModal(false);
-                    setAssigningDriver(null);
-                    setAssignBusFormData({ assignedShuttleId: "" });
-                  }}
-                  className="flex-1"
-                >
-                  Cancel
-                </Button>
+              {/* Quick Stats */}
+              <div className="flex gap-4 text-xs text-gray-500">
+                <span>Available: {availableShuttles.length}</span>
+                <span>
+                  Assigned: {drivers.filter((d) => d.assignedShuttleId).length}
+                </span>
               </div>
-            </form>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 rounded-b-xl bg-gray-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAssignBusModal(false);
+                  setAssigningDriver(null);
+                  setAssignBusFormData({ assignedShuttleId: "" });
+                }}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAssignBus}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+              >
+                {assigningDriver?.assignedShuttleId ? "Update" : "Assign"}
+              </button>
+            </div>
           </div>
         </div>
       )}
