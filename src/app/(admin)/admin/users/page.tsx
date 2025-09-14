@@ -28,6 +28,7 @@ import {
   Bus,
   Shield,
   Key,
+  Loader2,
 } from "lucide-react";
 import type { Driver, Student } from "~/types";
 
@@ -78,6 +79,15 @@ export default function UsersPage() {
     username: "",
     role: "",
   });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<{
+    type: "driver" | "student";
+    id: string;
+    name: string;
+    email: string;
+  } | null>(null);
+  const [loadingStates, setLoadingStates] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   useEffect(() => {
     void fetchUsers();
@@ -202,6 +212,7 @@ export default function UsersPage() {
 
   const handleDriverSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoadingState("driverSubmit", true);
     try {
       if (editingDriver) {
         // Update existing driver using UID as document ID
@@ -301,11 +312,14 @@ export default function UsersPage() {
           ? error.message
           : "An unexpected error occurred.";
       showToast.error(errorMessage);
+    } finally {
+      setLoadingState("driverSubmit", false);
     }
   };
 
   const handleStudentSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoadingState("studentSubmit", true);
     try {
       if (editingStudent) {
         // Update existing student using UID as document ID
@@ -394,12 +408,15 @@ export default function UsersPage() {
       showToast.error(
         error instanceof Error ? error.message : "Unexpected error",
       );
+    } finally {
+      setLoadingState("studentSubmit", false);
     }
   };
 
   const handleAssignBus = async () => {
     if (!assigningDriver) return;
 
+    setLoadingState("assignBus", true);
     try {
       const driverRef = doc(
         db,
@@ -433,6 +450,8 @@ export default function UsersPage() {
     } catch (error) {
       console.error("Error assigning bus:", error);
       showToast.assignBusError("Failed to assign bus");
+    } finally {
+      setLoadingState("assignBus", false);
     }
   };
 
@@ -450,6 +469,7 @@ export default function UsersPage() {
       return;
     }
 
+    setLoadingState("resetPassword", true);
     try {
       if (resettingPasswordUser.uid) {
         await callAdminAPI("reset-user", {
@@ -470,20 +490,31 @@ export default function UsersPage() {
       showToast.passwordResetError(
         error instanceof Error ? error.message : "Reset failed",
       );
+    } finally {
+      setLoadingState("resetPassword", false);
     }
   };
 
-  const handleDeleteDriver = async (driverId: string) => {
+  const handleDeleteDriver = (driverId: string) => {
     const driver = drivers.find((d) => d.id === driverId);
     if (!driver) return;
 
-    const confirmed = confirm(
-      `⚠️ Delete Driver Account\n\nThis will permanently delete:\n• ${driver.username} (${driver.email})\n• Their Firestore profile\n• Their Firebase Authentication account\n• Their bus assignment\n\nThis action cannot be undone.\n\nClick OK to proceed or Cancel to abort.`,
-    );
+    setShowDeleteConfirm({
+      type: "driver",
+      id: driverId,
+      name: driver.username,
+      email: driver.email,
+    });
+  };
 
-    if (!confirmed) return;
+  const confirmDeleteDriver = async () => {
+    if (!showDeleteConfirm || showDeleteConfirm.type !== "driver") return;
 
+    setLoadingState("deleteDriver", true);
     try {
+      const driver = drivers.find((d) => d.id === showDeleteConfirm.id);
+      if (!driver) return;
+
       // Delete Firebase Auth account first (if exists)
       if (driver.uid) {
         try {
@@ -495,27 +526,39 @@ export default function UsersPage() {
       }
 
       // Delete from Firestore using the UID as document ID
-      await deleteDoc(doc(db, "users", driver.uid || driverId));
+      await deleteDoc(doc(db, "users", driver.uid || showDeleteConfirm.id));
 
       await fetchUsers();
       showToast.userDeleted("Driver");
+      setShowDeleteConfirm(null);
     } catch (error) {
       console.error("Error deleting driver:", error);
       showToast.deleteUserError("Delete failed");
+    } finally {
+      setLoadingState("deleteDriver", false);
     }
   };
 
-  const handleDeleteStudent = async (studentId: string) => {
+  const handleDeleteStudent = (studentId: string) => {
     const student = students.find((s) => s.id === studentId);
     if (!student) return;
 
-    const confirmed = confirm(
-      `⚠️ Delete Student Account\n\nThis will permanently delete:\n• ${student.username} (${student.email})\n• Their Firestore profile\n• Their Firebase Authentication account\n\nThis action cannot be undone.\n\nClick OK to proceed or Cancel to abort.`,
-    );
+    setShowDeleteConfirm({
+      type: "student",
+      id: studentId,
+      name: student.username,
+      email: student.email,
+    });
+  };
 
-    if (!confirmed) return;
+  const confirmDeleteStudent = async () => {
+    if (!showDeleteConfirm || showDeleteConfirm.type !== "student") return;
 
+    setLoadingState("deleteStudent", true);
     try {
+      const student = students.find((s) => s.id === showDeleteConfirm.id);
+      if (!student) return;
+
       // Delete Firebase Auth account first (if exists)
       if (student.uid) {
         try {
@@ -527,13 +570,16 @@ export default function UsersPage() {
       }
 
       // Delete from Firestore using the UID as document ID
-      await deleteDoc(doc(db, "users", student.uid || studentId));
+      await deleteDoc(doc(db, "users", student.uid || showDeleteConfirm.id));
 
       await fetchUsers();
       showToast.userDeleted("Student");
+      setShowDeleteConfirm(null);
     } catch (error) {
       console.error("Error deleting student:", error);
       showToast.deleteUserError("Delete failed");
+    } finally {
+      setLoadingState("deleteStudent", false);
     }
   };
 
@@ -611,6 +657,11 @@ export default function UsersPage() {
     return `${shuttle.licensePlate} - ${shuttle.model} (${shuttle.year})`;
   };
 
+  // Helper function to manage loading states
+  const setLoadingState = (key: string, loading: boolean) => {
+    setLoadingStates((prev) => ({ ...prev, [key]: loading }));
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -643,10 +694,10 @@ export default function UsersPage() {
               buses
             </span>
             <span className="text-green-600">
-              🟢 Available: {availableShuttles.length} buses
+              Available: {availableShuttles.length} buses
             </span>
             <span className="text-red-600">
-              🔴 Assigned:{" "}
+              Assigned:{" "}
               {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
               buses
             </span>
@@ -1002,8 +1053,21 @@ export default function UsersPage() {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  {editingDriver ? "Update Driver" : "Create Driver"}
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={loadingStates.driverSubmit}
+                >
+                  {loadingStates.driverSubmit ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingDriver ? "Updating..." : "Creating..."}
+                    </>
+                  ) : editingDriver ? (
+                    "Update Driver"
+                  ) : (
+                    "Create Driver"
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -1102,8 +1166,21 @@ export default function UsersPage() {
               </div>
 
               <div className="flex gap-2 pt-4">
-                <Button type="submit" className="flex-1">
-                  {editingStudent ? "Update Student" : "Create Student"}
+                <Button
+                  type="submit"
+                  className="flex-1"
+                  disabled={loadingStates.studentSubmit}
+                >
+                  {loadingStates.studentSubmit ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {editingStudent ? "Updating..." : "Creating..."}
+                    </>
+                  ) : editingStudent ? (
+                    "Update Student"
+                  ) : (
+                    "Create Student"
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -1209,9 +1286,21 @@ export default function UsersPage() {
               <button
                 type="button"
                 onClick={handleAssignBus}
-                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                disabled={loadingStates.assignBus}
+                className="flex-1 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
               >
-                {assigningDriver?.assignedShuttleId ? "Update" : "Assign"}
+                {loadingStates.assignBus ? (
+                  <>
+                    <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                    {assigningDriver?.assignedShuttleId
+                      ? "Updating..."
+                      : "Assigning..."}
+                  </>
+                ) : assigningDriver?.assignedShuttleId ? (
+                  "Update"
+                ) : (
+                  "Assign"
+                )}
               </button>
             </div>
           </div>
@@ -1295,10 +1384,18 @@ export default function UsersPage() {
                   className="flex-1"
                   disabled={
                     passwordResetData.newPassword !==
-                    passwordResetData.confirmPassword
+                      passwordResetData.confirmPassword ||
+                    loadingStates.resetPassword
                   }
                 >
-                  Reset Password
+                  {loadingStates.resetPassword ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Resetting...
+                    </>
+                  ) : (
+                    "Reset Password"
+                  )}
                 </Button>
                 <Button
                   type="button"
@@ -1425,6 +1522,97 @@ export default function UsersPage() {
                 className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none"
               >
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-xl bg-white shadow-xl">
+            {/* Header */}
+            <div className="rounded-t-xl border-b bg-red-50 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-red-100">
+                  <span className="text-xl text-red-600">⚠️</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Delete{" "}
+                    {showDeleteConfirm.type === "driver" ? "Driver" : "Student"}
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    This action cannot be undone
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="space-y-4 p-6">
+              <div className="rounded-lg border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-800">
+                  <strong>User:</strong> {showDeleteConfirm.name}
+                  <br />
+                  <strong>Email:</strong> {showDeleteConfirm.email}
+                  <br />
+                  <strong>Type:</strong>{" "}
+                  {showDeleteConfirm.type === "driver" ? "Driver" : "Student"}
+                </p>
+              </div>
+
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm text-amber-800">
+                  <strong>⚠️ This will permanently delete:</strong>
+                  <br />
+                  • Firestore profile
+                  <br />• Firebase Authentication account
+                  {showDeleteConfirm.type === "driver" && (
+                    <>
+                      <br />• Bus assignment
+                    </>
+                  )}
+                  <br />
+                  <br />
+                  <strong>This action cannot be undone!</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3 rounded-b-xl bg-gray-50 px-6 py-4">
+              <button
+                onClick={() => setShowDeleteConfirm(null)}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:outline-none"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  if (showDeleteConfirm.type === "driver") {
+                    confirmDeleteDriver();
+                  } else {
+                    confirmDeleteStudent();
+                  }
+                }}
+                disabled={
+                  loadingStates.deleteDriver || loadingStates.deleteStudent
+                }
+                className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700 focus:ring-2 focus:ring-red-500 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {loadingStates.deleteDriver || loadingStates.deleteStudent ? (
+                  <>
+                    <Loader2 className="mr-2 inline h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  <>
+                    Delete{" "}
+                    {showDeleteConfirm.type === "driver" ? "Driver" : "Student"}
+                  </>
+                )}
               </button>
             </div>
           </div>

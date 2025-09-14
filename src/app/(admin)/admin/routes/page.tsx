@@ -30,6 +30,7 @@ import {
   Bus,
   Navigation,
   Timer,
+  Loader2,
 } from "lucide-react";
 import type {
   RouteData,
@@ -56,6 +57,9 @@ export default function RoutesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null,
   );
+  const [loadingStates, setLoadingStates] = useState<{
+    [key: string]: boolean;
+  }>({});
   const [showAddRouteModal, setShowAddRouteModal] = useState(false);
   const [addRouteLoading, setAddRouteLoading] = useState(false);
   const [newRoute, setNewRoute] = useState<Partial<RouteData>>({
@@ -335,6 +339,7 @@ export default function RoutesPage() {
       return;
     }
 
+    setLoadingStates((prev) => ({ ...prev, deleteAssignment: true }));
     try {
       let assignment;
       if (driverId) {
@@ -362,6 +367,8 @@ export default function RoutesPage() {
     } catch (error) {
       console.error("Error deleting route assignment:", error);
       toast.error("Delete failed");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, deleteAssignment: false }));
     }
   };
 
@@ -946,10 +953,18 @@ export default function RoutesPage() {
                   setShowDeleteConfirm(null);
                 }}
                 className="flex-1"
+                disabled={loadingStates.deleteAssignment}
               >
-                {showDeleteConfirm.includes("-")
-                  ? "Remove Driver"
-                  : "Delete All Assignments"}
+                {loadingStates.deleteAssignment ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : showDeleteConfirm.includes("-") ? (
+                  "Remove Driver"
+                ) : (
+                  "Delete All Assignments"
+                )}
               </Button>
             </div>
           </div>

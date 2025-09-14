@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   CheckCircle,
   XCircle,
+  Loader2,
 } from "lucide-react";
 import { Button } from "~/components/ui/button";
 import {
@@ -39,6 +40,9 @@ export default function ShuttlesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null,
   );
+  const [loadingStates, setLoadingStates] = useState<{
+    [key: string]: boolean;
+  }>({});
 
   const [formData, setFormData] = useState<ShuttleFormData>({
     licensePlate: "",
@@ -86,6 +90,7 @@ export default function ShuttlesPage() {
   };
 
   const handleDelete = async (shuttleId: string) => {
+    setLoadingStates((prev) => ({ ...prev, deleteShuttle: true }));
     try {
       await deleteShuttle(shuttleId);
       showToast.success("Shuttle deleted successfully");
@@ -94,6 +99,8 @@ export default function ShuttlesPage() {
     } catch (error) {
       console.error("Error deleting shuttle:", error);
       showToast.error("Failed to delete shuttle");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, deleteShuttle: false }));
     }
   };
 
@@ -528,9 +535,16 @@ export default function ShuttlesPage() {
                 onClick={() => handleDelete(showDeleteConfirm)}
                 className="flex-1"
                 variant="destructive"
-                disabled={actionLoading}
+                disabled={loadingStates.deleteShuttle}
               >
-                {actionLoading ? "Deleting..." : "Delete"}
+                {loadingStates.deleteShuttle ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : (
+                  "Delete"
+                )}
               </Button>
               <Button
                 onClick={() => setShowDeleteConfirm(null)}
