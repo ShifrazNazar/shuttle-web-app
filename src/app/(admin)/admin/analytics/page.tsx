@@ -1,19 +1,9 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  collection,
-  getDocs,
-  query,
-  where,
-  orderBy,
-  limit,
-} from "firebase/firestore";
-import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { Separator } from "~/components/ui/separator";
 import {
   TrendingUp,
   TrendingDown,
@@ -75,10 +65,10 @@ export default function AnalyticsPage() {
   );
   const [loading, setLoading] = useState(true);
   const [selectedPeriod, setSelectedPeriod] = useState("7d");
-  const [selectedMetric, setSelectedMetric] = useState("all");
+  // selectedMetric removed - not used in current implementation
 
   useEffect(() => {
-    fetchAnalyticsData();
+    void fetchAnalyticsData();
   }, [selectedPeriod]);
 
   const fetchAnalyticsData = async () => {
@@ -565,7 +555,14 @@ export default function AnalyticsPage() {
                         </div>
                       </td>
                       <td className="p-3">
-                        <Badge variant={efficiencyBadge.variant as any}>
+                        <Badge
+                          variant={
+                            efficiencyBadge.variant as
+                              | "default"
+                              | "secondary"
+                              | "destructive"
+                          }
+                        >
                           {efficiencyBadge.text}
                         </Badge>
                       </td>

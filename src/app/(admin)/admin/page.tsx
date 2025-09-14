@@ -21,6 +21,16 @@ type Shuttle = {
   isActive: boolean;
 };
 
+type FirebaseDriverData = {
+  busId?: string;
+  latitude: number;
+  longitude: number;
+  heading?: number;
+  timestamp?: number;
+  driverEmail?: string;
+  isActive: boolean;
+};
+
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -29,10 +39,10 @@ export default function AdminDashboardPage() {
 
   useMemo(() => {
     const unsub = onValue(ref(rtdb, "/activeDrivers"), (snap) => {
-      const val = snap.val() as Record<string, any> | null;
+      const val = snap.val() as Record<string, FirebaseDriverData> | null;
       const list: Shuttle[] = val
         ? Object.entries(val).map(([driverId, v]) => ({
-            id: v.busId || driverId,
+            id: v.busId ?? driverId,
             lat: v.latitude,
             lng: v.longitude,
             heading: v.heading,

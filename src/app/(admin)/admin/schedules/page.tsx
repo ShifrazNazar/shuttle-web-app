@@ -6,7 +6,7 @@ import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { Separator } from "~/components/ui/separator";
+
 import {
   Clock,
   Calendar,
@@ -285,7 +285,7 @@ export default function SchedulesPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Today's Departures
+              Today&apos;s Departures
             </CardTitle>
             <Calendar className="text-muted-foreground size-4" />
           </CardHeader>

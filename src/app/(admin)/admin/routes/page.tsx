@@ -30,7 +30,6 @@ import {
   Bus,
   Navigation,
   Timer,
-  AlertCircle,
 } from "lucide-react";
 
 interface RouteData {
@@ -113,6 +112,12 @@ export default function RoutesPage() {
     role: string;
   } | null>(null);
 
+  type FirestoreUserData = {
+    email?: string;
+    username?: string;
+    role?: string;
+  };
+
   useEffect(() => {
     fetchRoutesData();
     fetchDrivers();
@@ -142,12 +147,12 @@ export default function RoutesPage() {
     try {
       const userDoc = await getDoc(doc(db, "users", user.uid));
       if (userDoc.exists()) {
-        const userData = userDoc.data();
+        const userData = userDoc.data() as FirestoreUserData;
         setCurrentAdminUser({
           id: userDoc.id,
-          email: userData.email || user.email || "",
-          username: userData.username || user.displayName || "Admin",
-          role: userData.role || "admin",
+          email: userData.email ?? user.email ?? "",
+          username: userData.username ?? user.displayName ?? "Admin",
+          role: userData.role ?? "admin",
         });
       } else {
         // If user document doesn't exist, create a basic admin user object
@@ -365,22 +370,6 @@ export default function RoutesPage() {
     }));
   };
 
-  const getDriverRouteAssignments = (driverId: string) => {
-    return routeAssignments.filter(
-      (a) => a.driverId === driverId && a.status === "active",
-    );
-  };
-
-  const getRelatedRoutes = (route: RouteData) => {
-    // Find routes that are the reverse of this route (e.g., APU to LRT and LRT to APU)
-    return routes.filter(
-      (otherRoute) =>
-        otherRoute.routeId !== route.routeId &&
-        otherRoute.origin === route.destination &&
-        otherRoute.destination === route.origin,
-    );
-  };
-
   const handleDeleteConfirm = (routeId: string, driverId?: string) => {
     setShowDeleteConfirm(driverId ? `${routeId}-${driverId}` : routeId);
   };
@@ -521,11 +510,11 @@ export default function RoutesPage() {
     try {
       const routeData = {
         routeId: newRoute.routeId!,
-        routeName: newRoute.routeName!.trim(),
-        origin: newRoute.origin!.trim(),
-        destination: newRoute.destination!.trim(),
-        operatingDays: newRoute.operatingDays!,
-        schedule: newRoute.schedule!,
+        routeName: newRoute.routeName.trim(),
+        origin: newRoute.origin.trim(),
+        destination: newRoute.destination.trim(),
+        operatingDays: newRoute.operatingDays,
+        schedule: newRoute.schedule,
         isActive: true,
         createdAt: Timestamp.now(),
         // Only include specialNotes if it has a value
@@ -822,7 +811,7 @@ export default function RoutesPage() {
                       );
                       return assignedDrivers.length > 0 ? (
                         <div className="space-y-2">
-                          {assignedDrivers.map((driver, index) => (
+                          {assignedDrivers.map((driver) => (
                             <div
                               key={driver.id}
                               className="flex items-center justify-between"
