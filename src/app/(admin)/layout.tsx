@@ -13,6 +13,7 @@ import {
   LogOut,
   User,
   Car,
+  Brain,
 } from "lucide-react";
 
 import { ModeToggle } from "~/components/theme-toggle";
@@ -35,6 +36,7 @@ const menuItems = [
   { title: "Dashboard", href: "/admin", icon: Home },
   { title: "Routes", href: "/admin/routes", icon: Route },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
+  { title: "AI Analytics", href: "/admin/ai-analytics", icon: Brain },
   { title: "Users", href: "/admin/users", icon: Users },
   { title: "Shuttles", href: "/admin/shuttles", icon: Car },
 ];

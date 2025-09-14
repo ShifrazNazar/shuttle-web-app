@@ -29,6 +29,16 @@ export async function POST(request: NextRequest) {
           await aiService.generateRecommendations(analyticsData);
         return NextResponse.json({ recommendations });
 
+      case "demand-predictions":
+        const demandPredictions =
+          await aiService.generateDemandPredictions(analyticsData);
+        return NextResponse.json({ demandPredictions });
+
+      case "schedule-optimizations":
+        const scheduleOptimizations =
+          await aiService.generateScheduleOptimizations(analyticsData);
+        return NextResponse.json({ scheduleOptimizations });
+
       case "chat":
         if (!question) {
           return NextResponse.json(
@@ -46,7 +56,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(
           {
             error:
-              "Invalid action. Use: insights, predictions, recommendations, or chat",
+              "Invalid action. Use: insights, predictions, recommendations, demand-predictions, schedule-optimizations, or chat",
           },
           { status: 400 },
         );
