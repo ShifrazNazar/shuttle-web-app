@@ -14,6 +14,8 @@
     "format:check": "prettier --check \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "format:write": "prettier --write \"**/*.{ts,tsx,js,jsx,mdx}\" --cache",
     "migrate:routes": "tsx scripts/migrate-routes-to-firestore.ts",
+    "seed:shuttles": "tsx scripts/seed-shuttles.ts",
+    "seed:shuttles:js": "node scripts/seed-shuttles.js",
     "debug:migration": "tsx scripts/debug-migration.ts",
     "simple:test": "tsx scripts/simple-test.ts",
     "admin:test": "tsx scripts/admin-migration.ts",

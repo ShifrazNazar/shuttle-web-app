@@ -13,6 +13,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { showToast } from "~/lib/toast";
+import { useAvailableShuttles } from "~/hooks/use-shuttles";
 
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
@@ -34,6 +35,10 @@ export default function UsersPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Get available shuttles from Firestore
+  const { availableShuttles, loading: shuttlesLoading } =
+    useAvailableShuttles();
   const [driverSearchTerm, setDriverSearchTerm] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
@@ -58,29 +63,7 @@ export default function UsersPage() {
     assignedShuttleId: "",
   });
 
-  // Predefined list of available bus IDs
-  const availableBusIds = [
-    "B001",
-    "B002",
-    "B003",
-    "B004",
-    "B005",
-    "B006",
-    "B007",
-    "B008",
-    "B009",
-    "B010",
-    "B011",
-    "B012",
-    "B013",
-    "B014",
-    "B015",
-    "B016",
-    "B017",
-    "B018",
-    "B019",
-    "B020",
-  ];
+  // Available shuttles are now fetched from Firestore
   const [passwordResetData, setPasswordResetData] = useState({
     newPassword: "",
     confirmPassword: "",
@@ -267,7 +250,8 @@ export default function UsersPage() {
 
           // Show password in modal for easy copying
           const tempPassword =
-            (apiResult as any).user?.temporaryPassword || "Not available";
+            (apiResult as { user?: { temporaryPassword?: string } }).user
+              ?.temporaryPassword || "Not available";
           setGeneratedPassword(tempPassword);
           setNewUserInfo({
             email: driverFormData.email,
@@ -361,7 +345,8 @@ export default function UsersPage() {
 
           // Show password in modal for easy copying
           const tempPassword =
-            (apiResult as any).user?.temporaryPassword || "Not available";
+            (apiResult as { user?: { temporaryPassword?: string } }).user
+              ?.temporaryPassword || "Not available";
           setGeneratedPassword(tempPassword);
           setNewUserInfo({
             email: studentFormData.email,
@@ -641,25 +626,22 @@ export default function UsersPage() {
           </p>
           <div className="mt-2 flex gap-4 text-xs">
             <span className="text-muted-foreground">
-              🚌 Total Fleet: {availableBusIds.length} buses
+              🚌 Total Fleet:{" "}
+              {availableShuttles.length +
+                drivers.filter((d) => d.assignedShuttleId).length}{" "}
+              buses
             </span>
             <span className="text-green-600">
-              🟢 Available:{" "}
-              {
-                availableBusIds.filter(
-                  (busId) =>
-                    !drivers.some(
-                      (driver) => driver.assignedShuttleId === busId,
-                    ),
-                ).length
-              }{" "}
-              buses
+              🟢 Available: {availableShuttles.length} buses
             </span>
             <span className="text-red-600">
               🔴 Assigned:{" "}
               {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
               buses
             </span>
+            {shuttlesLoading && (
+              <span className="text-blue-600">⏳ Loading shuttles...</span>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -1140,7 +1122,9 @@ export default function UsersPage() {
       {showAssignBusModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
           <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6">
-            <h2 className="mb-4 text-xl font-semibold">Assign Bus to Driver</h2>
+            <h2 className="mb-4 text-xl font-semibold">
+              Assign Shuttle to Driver
+            </h2>
 
             <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3">
               <p className="text-sm text-blue-800">
@@ -1156,33 +1140,36 @@ export default function UsersPage() {
             {/* Bus Availability Info */}
             <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
               <p className="text-sm text-amber-800">
-                <strong>Bus Fleet Status:</strong>
+                <strong>Shuttle Fleet Status:</strong>
                 <br />
                 <span className="text-green-600">🟢 Available:</span>{" "}
-                {
-                  availableBusIds.filter(
-                    (busId) =>
-                      !drivers.some(
-                        (driver) => driver.assignedShuttleId === busId,
-                      ),
-                  ).length
-                }{" "}
-                buses
+                {availableShuttles.length} shuttles
                 <br />
                 <span className="text-red-600">🔴 Assigned:</span>{" "}
                 {drivers.filter((driver) => driver.assignedShuttleId).length}{" "}
-                buses
+                shuttles
                 <br />
                 <span className="text-xs">
-                  Total fleet: {availableBusIds.length} buses
+                  Total fleet:{" "}
+                  {availableShuttles.length +
+                    drivers.filter((d) => d.assignedShuttleId).length}{" "}
+                  shuttles
                 </span>
+                {shuttlesLoading && (
+                  <>
+                    <br />
+                    <span className="text-xs text-blue-600">
+                      ⏳ Loading shuttle data...
+                    </span>
+                  </>
+                )}
               </p>
             </div>
 
             <form onSubmit={handleAssignBus} className="space-y-4">
               <div>
                 <label className="mb-1 block text-sm font-medium">
-                  Select Bus {!assigningDriver?.assignedShuttleId && "*"}
+                  Select Shuttle {!assigningDriver?.assignedShuttleId && "*"}
                 </label>
                 <select
                   required={!assigningDriver?.assignedShuttleId}
@@ -1191,23 +1178,21 @@ export default function UsersPage() {
                     setAssignBusFormData({ assignedShuttleId: e.target.value })
                   }
                   className="border-input bg-background text-foreground focus:ring-ring w-full rounded-md border px-3 py-2 focus:border-transparent focus:ring-2 focus:outline-none"
+                  disabled={shuttlesLoading}
                 >
-                  <option value="">Choose a bus...</option>
-                  <optgroup label="🟢 Available Buses">
-                    {availableBusIds
-                      .filter(
-                        (busId) =>
-                          !drivers.some(
-                            (driver) =>
-                              driver.assignedShuttleId === busId &&
-                              driver.id !== assigningDriver?.id,
-                          ),
-                      )
-                      .map((busId) => (
-                        <option key={busId} value={busId}>
-                          {busId} - Available
-                        </option>
-                      ))}
+                  <option value="">
+                    {shuttlesLoading
+                      ? "Loading shuttles..."
+                      : "Choose a shuttle..."}
+                  </option>
+                  <optgroup label="🟢 Available Shuttles">
+                    {availableShuttles.map((shuttle) => (
+                      <option key={shuttle.id} value={shuttle.id}>
+                        {shuttle.licensePlate} -{" "}
+                        {shuttle.model || "Unknown Model"} (Capacity:{" "}
+                        {shuttle.capacity})
+                      </option>
+                    ))}
                   </optgroup>
                   {assigningDriver?.assignedShuttleId && (
                     <optgroup label="🟡 Current Assignment">
@@ -1215,40 +1200,38 @@ export default function UsersPage() {
                         {assigningDriver.assignedShuttleId} - Currently Assigned
                         (Keep)
                       </option>
-                      <option value="">🚫 Clear Assignment (Remove Bus)</option>
+                      <option value="">
+                        🚫 Clear Assignment (Remove Shuttle)
+                      </option>
                     </optgroup>
                   )}
                   <optgroup label="🔴 Currently Assigned">
-                    {availableBusIds
-                      .filter((busId) =>
-                        drivers.some(
-                          (driver) =>
-                            driver.assignedShuttleId === busId &&
-                            driver.id !== assigningDriver?.id,
-                        ),
+                    {drivers
+                      .filter(
+                        (driver) =>
+                          driver.assignedShuttleId &&
+                          driver.id !== assigningDriver?.id,
                       )
-                      .map((busId) => {
-                        const assignedDriver = drivers.find(
-                          (driver) =>
-                            driver.assignedShuttleId === busId &&
-                            driver.id !== assigningDriver?.id,
-                        );
-                        return (
-                          <option key={busId} value={busId} disabled>
-                            {busId} - Assigned to {assignedDriver?.username}
-                          </option>
-                        );
-                      })}
+                      .map((driver) => (
+                        <option
+                          key={driver.assignedShuttleId}
+                          value={driver.assignedShuttleId}
+                          disabled
+                        >
+                          {driver.assignedShuttleId} - Assigned to{" "}
+                          {driver.username}
+                        </option>
+                      ))}
                   </optgroup>
                 </select>
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Select from available bus fleet
+                  Select from available shuttle fleet
                 </p>
               </div>
 
               <div className="flex gap-2 pt-4">
                 <Button type="submit" className="flex-1">
-                  Assign Bus
+                  Assign Shuttle
                 </Button>
                 <Button
                   type="button"

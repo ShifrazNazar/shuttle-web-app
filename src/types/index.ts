@@ -5,3 +5,4 @@ export * from "./drivers";
 export * from "./locations";
 export * from "./firebase";
 export * from "./analytics";
+export * from "./shuttles";

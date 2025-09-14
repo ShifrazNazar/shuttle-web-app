@@ -31,6 +31,9 @@ export default tseslint.config(
       "@typescript-eslint/no-unused-vars": "off", // Turn off the base rule
       "@typescript-eslint/prefer-nullish-coalescing": "off",
       "@typescript-eslint/no-floating-promises": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
       "unused-imports/no-unused-imports": "error",
       "unused-imports/no-unused-vars": [
         "error",

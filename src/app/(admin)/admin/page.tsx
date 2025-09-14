@@ -7,7 +7,8 @@ import { MapPin, Users, Clock, Activity, Loader2 } from "lucide-react";
 import { env } from "~/env";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import { useActiveShuttles } from "~/hooks/use-shuttles";
+import { useShuttles } from "~/hooks/use-shuttles";
+import { useActiveDrivers } from "~/hooks/use-active-drivers";
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
@@ -15,13 +16,19 @@ export default function AdminDashboardPage() {
   });
 
   const {
-    data: shuttles = [],
-    isLoading: shuttlesLoading,
+    shuttles = [],
+    loading: shuttlesLoading,
     error: shuttlesError,
-  } = useActiveShuttles();
+  } = useShuttles();
+
+  const {
+    activeDrivers = [],
+    loading: driversLoading,
+    error: driversError,
+  } = useActiveDrivers();
 
   const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
-  const activeShuttles = shuttles.filter((s) => s.isActive);
+  const activeShuttles = shuttles.filter((s) => s.status === "active");
   const totalPassengers = 234; // Mock data
   const averageWaitTime = 8; // Mock data
 
@@ -42,8 +49,8 @@ export default function AdminDashboardPage() {
         <div className="text-center">
           <p className="text-red-600">Failed to load shuttle data</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {shuttlesError instanceof Error
-              ? shuttlesError.message
+            {typeof shuttlesError === "string"
+              ? shuttlesError
               : "Unknown error"}
           </p>
         </div>
@@ -70,9 +77,9 @@ export default function AdminDashboardPage() {
             <Activity className="text-muted-foreground size-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{shuttles.length}</div>
+            <div className="text-2xl font-bold">{activeDrivers.length}</div>
             <p className="text-muted-foreground text-xs">
-              {activeShuttles.length} currently moving
+              {activeDrivers.length} currently tracking
             </p>
           </CardContent>
         </Card>
@@ -133,11 +140,14 @@ export default function AdminDashboardPage() {
                 center={center}
                 mapContainerClassName="h-full w-full"
               >
-                {shuttles.map((s) => (
+                {activeDrivers.map((driver) => (
                   <Marker
-                    key={s.id}
-                    position={{ lat: s.lat, lng: s.lng }}
-                    title={`${s.driverEmail} - ${s.isActive ? "Active" : "Inactive"}`}
+                    key={driver.driverId}
+                    position={{
+                      lat: driver.latitude,
+                      lng: driver.longitude,
+                    }}
+                    title={`${driver.busId} - ${driver.driverEmail || "Unknown Driver"}`}
                   />
                 ))}
               </GoogleMap>
@@ -151,38 +161,34 @@ export default function AdminDashboardPage() {
               <CardTitle>Shuttle Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {shuttlesLoading ? (
+              {driversLoading ? (
                 <div className="flex items-center justify-center py-4">
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   <span className="text-muted-foreground text-sm">
-                    Loading shuttles...
+                    Loading active drivers...
                   </span>
                 </div>
-              ) : shuttles.length === 0 ? (
+              ) : activeDrivers.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
-                  No shuttles currently active
+                  No drivers currently tracking
                 </p>
               ) : (
-                shuttles.map((shuttle) => (
+                activeDrivers.map((driver) => (
                   <div
-                    key={shuttle.id}
+                    key={driver.driverId}
                     className="flex items-center justify-between"
                   >
                     <div>
-                      <p className="font-medium">Shuttle {shuttle.id}</p>
+                      <p className="font-medium">Bus {driver.busId}</p>
                       <p className="text-muted-foreground text-sm">
-                        Driver: {shuttle.driverEmail}
+                        Driver: {driver.driverEmail || "Unknown"}
                       </p>
                       <p className="text-muted-foreground text-xs">
-                        {shuttle.isActive ? "Active" : "Inactive"} •{" "}
-                        {shuttle.updatedAt
-                          ? new Date(shuttle.updatedAt).toLocaleTimeString()
-                          : "N/A"}
+                        Last update:{" "}
+                        {new Date(driver.timestamp).toLocaleTimeString()}
                       </p>
                     </div>
-                    <Badge variant={shuttle.isActive ? "default" : "secondary"}>
-                      {shuttle.isActive ? "Active" : "Inactive"}
-                    </Badge>
+                    <Badge variant="default">Live Tracking</Badge>
                   </div>
                 ))
               )}

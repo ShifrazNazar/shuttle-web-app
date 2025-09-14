@@ -12,6 +12,7 @@ import {
   Menu,
   LogOut,
   User,
+  Car,
 } from "lucide-react";
 
 import { ModeToggle } from "~/components/theme-toggle";
@@ -36,6 +37,7 @@ const menuItems = [
   { title: "Routes", href: "/admin/routes", icon: Route },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { title: "Users", href: "/admin/users", icon: Users },
+  { title: "Shuttles", href: "/admin/shuttles", icon: Car },
 ];
 
 function AppSidebar() {

@@ -358,9 +358,6 @@ export default function RoutesPage() {
       // Delete the assignment document permanently
       await deleteDoc(doc(db, "routeAssignments", assignment.id));
 
-      const message = driverId
-        ? `Driver assignment removed successfully!`
-        : "Route assignment deleted successfully!";
       toast.success("Assignment deleted");
     } catch (error) {
       console.error("Error deleting route assignment:", error);
