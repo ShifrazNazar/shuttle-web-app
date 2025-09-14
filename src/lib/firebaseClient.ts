@@ -4,16 +4,7 @@ import { getFirestore } from "firebase/firestore";
 import { getDatabase } from "firebase/database";
 
 import { env } from "~/env";
-
-type FirebaseWebConfig = {
-  apiKey: string;
-  authDomain: string;
-  projectId: string;
-  messagingSenderId: string;
-  appId: string;
-  databaseURL?: string;
-  storageBucket?: string;
-};
+import type { FirebaseWebConfig } from "~/types";
 
 const firebaseConfig: FirebaseWebConfig = {
   apiKey: env.NEXT_PUBLIC_FIREBASE_API_KEY,

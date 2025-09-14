@@ -3,13 +3,12 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "~/hooks/use-auth";
+import type { ProtectedRouteProps } from "~/types";
 
-interface ProtectedRouteProps {
-  children: React.ReactNode;
-  requireAuth?: boolean;
-}
-
-export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteProps) {
+export function ProtectedRoute({
+  children,
+  requireAuth = true,
+}: ProtectedRouteProps) {
   const { loading, isAuthenticated } = useAuth();
   const router = useRouter();
 
@@ -23,7 +22,7 @@ export function ProtectedRoute({ children, requireAuth = true }: ProtectedRouteP
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <div className="border-primary mx-auto mb-4 h-12 w-12 animate-spin rounded-full border-b-2"></div>
           <p className="text-muted-foreground">Loading...</p>
         </div>
       </div>

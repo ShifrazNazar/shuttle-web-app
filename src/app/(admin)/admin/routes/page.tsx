@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   collection,
   getDocs,
@@ -31,51 +31,13 @@ import {
   Navigation,
   Timer,
 } from "lucide-react";
-
-interface RouteData {
-  routeId: string;
-  routeName: string;
-  origin: string;
-  destination: string;
-  operatingDays: string[];
-  schedule: string[];
-  specialNotes?: string;
-}
-
-interface Driver {
-  id: string;
-  uid: string;
-  email: string;
-  username: string;
-  role: "driver";
-  assignedShuttleId: string;
-  assignedRouteId?: string;
-}
-
-interface LocationData {
-  locationId: string;
-  name: string;
-  fullName: string;
-  type: string;
-  coordinates: {
-    latitude: number;
-    longitude: number;
-  };
-}
-
-interface RouteAssignment {
-  id: string;
-  routeId: string;
-  routeName: string;
-  driverId: string;
-  driverEmail: string;
-  driverUsername: string;
-  busId: string;
-  assignedAt: Timestamp;
-  status: "active" | "inactive" | "temporary";
-  assignedBy: string;
-  priority?: number; // For multiple drivers on same route
-}
+import type {
+  RouteData,
+  Driver,
+  LocationData,
+  RouteAssignment,
+  FirestoreUserData,
+} from "~/types";
 
 export default function RoutesPage() {
   const { user } = useAuth();
@@ -112,36 +74,7 @@ export default function RoutesPage() {
     role: string;
   } | null>(null);
 
-  type FirestoreUserData = {
-    email?: string;
-    username?: string;
-    role?: string;
-  };
-
-  useEffect(() => {
-    fetchRoutesData();
-    fetchDrivers();
-    setupRouteAssignmentsListener();
-    if (user) {
-      fetchCurrentAdminUser();
-    }
-  }, [user]);
-
-  // Refresh data when the page becomes visible (useful for updates from other tabs)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden) {
-        fetchDrivers();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, []);
-
-  const fetchCurrentAdminUser = async () => {
+  const fetchCurrentAdminUser = useCallback(async () => {
     if (!user?.uid) return;
 
     try {
@@ -173,7 +106,30 @@ export default function RoutesPage() {
         role: "admin",
       });
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    fetchRoutesData();
+    fetchDrivers();
+    setupRouteAssignmentsListener();
+    if (user) {
+      fetchCurrentAdminUser();
+    }
+  }, [user, fetchCurrentAdminUser]);
+
+  // Refresh data when the page becomes visible (useful for updates from other tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        fetchDrivers();
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const setupRouteAssignmentsListener = () => {
     const assignmentsRef = collection(db, "routeAssignments");

@@ -9,27 +9,7 @@ import { env } from "~/env";
 import { rtdb } from "~/lib/firebaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-
-type Shuttle = {
-  id: string;
-  lat: number;
-  lng: number;
-  heading?: number;
-  updatedAt?: number;
-  driverId: string;
-  driverEmail?: string;
-  isActive: boolean;
-};
-
-type FirebaseDriverData = {
-  busId?: string;
-  latitude: number;
-  longitude: number;
-  heading?: number;
-  timestamp?: number;
-  driverEmail?: string;
-  isActive: boolean;
-};
+import type { Shuttle, FirebaseDriverData } from "~/types";
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({

@@ -1,24 +1,8 @@
 "use client";
 
 import { createContext, useContext, type PropsWithChildren } from "react";
-import { type User } from "firebase/auth";
 import { useAuth } from "~/hooks/use-auth";
-
-interface AuthContextType {
-  user: User | null;
-  loading: boolean;
-  isAuthenticated: boolean;
-  signIn: (
-    email: string,
-    password: string,
-  ) => Promise<{ success: boolean; user?: User; error?: Error }>;
-  signInWithGoogle: () => Promise<{
-    success: boolean;
-    user?: User;
-    error?: Error;
-  }>;
-  logout: () => Promise<{ success: boolean; error?: Error }>;
-}
+import type { AuthContextType } from "~/types";
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
+import type { RouteData, Driver, ScheduleTime } from "~/types";
 
 import {
   Clock,
@@ -24,36 +25,6 @@ import {
   TrendingUp,
   TrendingDown,
 } from "lucide-react";
-
-interface RouteData {
-  routeId: string;
-  routeName: string;
-  origin: string;
-  destination: string;
-  operatingDays: string[];
-  schedule: string[];
-  specialNotes?: string;
-}
-
-interface Driver {
-  id: string;
-  uid: string;
-  email: string;
-  username: string;
-  role: "driver";
-  assignedShuttleId: string;
-  assignedRouteId?: string;
-}
-
-interface ScheduleTime {
-  time: string;
-  routeId: string;
-  routeName: string;
-  origin: string;
-  destination: string;
-  assignedDriver?: Driver;
-  status: "upcoming" | "active" | "completed" | "delayed";
-}
 
 export default function SchedulesPage() {
   const [routes, setRoutes] = useState<RouteData[]>([]);
@@ -82,9 +53,42 @@ export default function SchedulesPage() {
     fetchDrivers();
   }, []);
 
+  const filterSchedules = useCallback(() => {
+    let filtered = allSchedules;
+
+    // Filter by day
+    if (selectedDay !== "all") {
+      const routeIdsForDay = routes
+        .filter((route) => route.operatingDays.includes(selectedDay))
+        .map((route) => route.routeId);
+      filtered = filtered.filter((schedule) =>
+        routeIdsForDay.includes(schedule.routeId),
+      );
+    }
+
+    // Filter by route
+    if (selectedRoute !== "all") {
+      filtered = filtered.filter(
+        (schedule) => schedule.routeId === selectedRoute,
+      );
+    }
+
+    // Filter by search term
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (schedule) =>
+          schedule.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          schedule.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          schedule.destination.toLowerCase().includes(searchTerm.toLowerCase()),
+      );
+    }
+
+    setFilteredSchedules(filtered);
+  }, [allSchedules, selectedDay, selectedRoute, searchTerm, routes]);
+
   useEffect(() => {
     filterSchedules();
-  }, [allSchedules, selectedDay, selectedRoute, searchTerm]);
+  }, [allSchedules, selectedDay, selectedRoute, searchTerm, filterSchedules]);
 
   const fetchSchedulesData = async () => {
     try {
@@ -136,39 +140,6 @@ export default function SchedulesPage() {
     } finally {
       setLoading(false);
     }
-  };
-
-  const filterSchedules = () => {
-    let filtered = allSchedules;
-
-    // Filter by day
-    if (selectedDay !== "all") {
-      const routeIdsForDay = routes
-        .filter((route) => route.operatingDays.includes(selectedDay))
-        .map((route) => route.routeId);
-      filtered = filtered.filter((schedule) =>
-        routeIdsForDay.includes(schedule.routeId),
-      );
-    }
-
-    // Filter by route
-    if (selectedRoute !== "all") {
-      filtered = filtered.filter(
-        (schedule) => schedule.routeId === selectedRoute,
-      );
-    }
-
-    // Filter by search term
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (schedule) =>
-          schedule.routeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          schedule.origin.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          schedule.destination.toLowerCase().includes(searchTerm.toLowerCase()),
-      );
-    }
-
-    setFilteredSchedules(filtered);
   };
 
   const getAssignedDriver = (routeId: string) => {

@@ -28,27 +28,7 @@ import {
   Shield,
   Key,
 } from "lucide-react";
-
-interface Driver {
-  id: string;
-  uid?: string; // Firebase Auth UID
-  email: string;
-  username: string;
-  role: "driver";
-  assignedShuttleId: string;
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-interface Student {
-  id: string;
-  uid?: string; // Firebase Auth UID
-  email: string;
-  username: string;
-  role: "student";
-  createdAt: Date;
-  updatedAt: Date;
-}
+import type { Driver, Student } from "~/types";
 
 export default function UsersPage() {
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -801,7 +781,7 @@ export default function UsersPage() {
                       )}
                     </td>
                     <td className="text-muted-foreground px-4 py-3 text-sm">
-                      {driver.createdAt.toLocaleDateString()}
+                      {driver.createdAt?.toLocaleDateString() ?? "N/A"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
@@ -922,7 +902,7 @@ export default function UsersPage() {
                       </div>
                     </td>
                     <td className="text-muted-foreground px-4 py-3 text-sm">
-                      {student.createdAt.toLocaleDateString()}
+                      {student.createdAt?.toLocaleDateString() ?? "N/A"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
