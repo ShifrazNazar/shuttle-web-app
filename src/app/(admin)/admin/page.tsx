@@ -11,6 +11,8 @@ import {
   Car,
   Route,
   UserCheck,
+  CheckCircle,
+  AlertCircle,
 } from "lucide-react";
 
 import { env } from "~/env";
@@ -18,9 +20,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { useShuttles } from "~/hooks/use-shuttles";
 import { useActiveDrivers } from "~/hooks/use-active-drivers";
+import { useAIAnalytics } from "~/hooks/use-ai-analytics";
 import { useState, useEffect } from "react";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "~/lib/firebaseClient";
+import { Bot, Sparkles, Lightbulb, TrendingUp } from "lucide-react";
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
@@ -44,6 +48,17 @@ export default function AdminDashboardPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [routeAssignments, setRouteAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // AI Analytics hook
+  const {
+    insights,
+    predictions,
+    recommendations,
+    loading: aiLoading,
+    generateInsights,
+    generatePredictions,
+    generateRecommendations,
+  } = useAIAnalytics();
 
   const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
   const activeShuttles = shuttles.filter((s) => s.status === "active");
@@ -98,6 +113,40 @@ export default function AdminDashboardPage() {
 
     fetchData();
   }, []);
+
+  // Generate AI insights when data is loaded
+  useEffect(() => {
+    if (routes.length > 0 && users.length > 0 && shuttles.length > 0) {
+      const analyticsData = {
+        totalRoutes: routes.length,
+        totalDrivers: users.filter((u) => u.role === "driver").length,
+        totalStudents: users.filter((u) => u.role === "student").length,
+        activeShuttles: shuttles.filter((s) => s.status === "active").length,
+        assignedShuttles: shuttles.filter((s) => s.driverId).length,
+        availableShuttles: shuttles.filter(
+          (s) => s.status === "active" && !s.driverId,
+        ).length,
+        activeDrivers: activeDrivers.length,
+        routes,
+        shuttles,
+        users,
+        routeAssignments,
+      };
+
+      void generateInsights(analyticsData);
+      void generatePredictions(analyticsData);
+      void generateRecommendations(analyticsData);
+    }
+  }, [
+    routes,
+    users,
+    shuttles,
+    activeDrivers,
+    routeAssignments,
+    generateInsights,
+    generatePredictions,
+    generateRecommendations,
+  ]);
 
   if (!isLoaded || loading) {
     return (
@@ -331,6 +380,163 @@ export default function AdminDashboardPage() {
                   {availableShuttles}
                 </span>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* AI Insights */}
+          {insights.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                  AI Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {insights.slice(0, 3).map((insight, index) => (
+                  <div
+                    key={index}
+                    className={`rounded-lg border p-3 ${
+                      insight.type === "success"
+                        ? "border-green-200 bg-green-50"
+                        : insight.type === "warning"
+                          ? "border-yellow-200 bg-yellow-50"
+                          : insight.type === "info"
+                            ? "border-blue-200 bg-blue-50"
+                            : "border-gray-200 bg-gray-50"
+                    }`}
+                  >
+                    <div className="flex items-start gap-2">
+                      {insight.type === "success" ? (
+                        <CheckCircle className="mt-0.5 h-4 w-4 text-green-600" />
+                      ) : insight.type === "warning" ? (
+                        <AlertCircle className="mt-0.5 h-4 w-4 text-yellow-600" />
+                      ) : insight.type === "info" ? (
+                        <Activity className="mt-0.5 h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Activity className="mt-0.5 h-4 w-4 text-gray-600" />
+                      )}
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <h4 className="text-sm font-medium">
+                            {insight.title}
+                          </h4>
+                          <Badge
+                            variant={
+                              insight.priority === "high"
+                                ? "destructive"
+                                : insight.priority === "medium"
+                                  ? "secondary"
+                                  : "outline"
+                            }
+                            className="text-xs"
+                          >
+                            {insight.priority}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-gray-700">
+                          {insight.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {insights.length > 3 && (
+                  <div className="text-center">
+                    <button
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                      onClick={() =>
+                        (window.location.href = "/admin/analytics")
+                      }
+                    >
+                      View all {insights.length} insights →
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* AI Predictions */}
+          {predictions.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-green-600" />
+                  AI Predictions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {predictions.slice(0, 2).map((prediction, index) => (
+                  <div key={index} className="rounded-lg border bg-gray-50 p-3">
+                    <div className="mb-2 flex items-center justify-between">
+                      <h4 className="text-sm font-medium">
+                        {prediction.metric}
+                      </h4>
+                      <Badge variant="outline" className="text-xs">
+                        {prediction.confidence}% confidence
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-gray-600">
+                        Current: {prediction.currentValue}
+                      </span>
+                      <span className="font-medium text-green-600">
+                        → {prediction.predictedValue}
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">
+                      {prediction.timeframe}
+                    </p>
+                  </div>
+                ))}
+                {predictions.length > 2 && (
+                  <div className="text-center">
+                    <button
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                      onClick={() =>
+                        (window.location.href = "/admin/analytics")
+                      }
+                    >
+                      View all predictions →
+                    </button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Quick Actions */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <button
+                className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-md px-3 py-2 text-sm"
+                onClick={() => (window.location.href = "/admin/routes")}
+              >
+                Manage Routes
+              </button>
+              <button
+                className="hover:bg-muted w-full rounded-md border px-3 py-2 text-sm"
+                onClick={() => (window.location.href = "/admin/shuttles")}
+              >
+                Manage Shuttles
+              </button>
+              <button
+                className="hover:bg-muted w-full rounded-md border px-3 py-2 text-sm"
+                onClick={() => (window.location.href = "/admin/users")}
+              >
+                Manage Users
+              </button>
+              <button
+                className="hover:bg-muted w-full rounded-md border px-3 py-2 text-sm"
+                onClick={() => (window.location.href = "/admin/analytics")}
+              >
+                <Bot className="mr-2 inline h-4 w-4" />
+                AI Analytics
+              </button>
             </CardContent>
           </Card>
         </div>

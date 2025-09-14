@@ -3,28 +3,36 @@ export interface AnalyticsData {
   totalDrivers: number;
   totalStudents: number;
   activeShuttles: number;
-  totalDepartures: number;
-  averageWaitTime: number;
-  onTimePercentage: number;
-  peakHours: {
+  assignedShuttles: number;
+  availableShuttles: number;
+  activeDrivers: number;
+  routes: any[];
+  shuttles: any[];
+  users: any[];
+  routeAssignments: any[];
+  // Legacy fields for backward compatibility
+  totalDepartures?: number;
+  averageWaitTime?: number;
+  onTimePercentage?: number;
+  peakHours?: {
     morning: number;
     afternoon: number;
     evening: number;
   };
-  routePerformance: {
+  routePerformance?: {
     routeId: string;
     routeName: string;
     usage: number;
     efficiency: number;
     delays: number;
   }[];
-  dailyStats: {
+  dailyStats?: {
     date: string;
     passengers: number;
     departures: number;
     delays: number;
   }[];
-  locationUsage: {
+  locationUsage?: {
     location: string;
     pickups: number;
     dropoffs: number;
