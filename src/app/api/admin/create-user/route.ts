@@ -122,7 +122,7 @@ export async function POST(request: NextRequest) {
       role,
       createdAt: new Date(),
       updatedAt: new Date(),
-      requiresPasswordChange: false,
+      requiresPasswordChange: true,
       ...(role === "driver" && { assignedShuttleId }),
     };
 

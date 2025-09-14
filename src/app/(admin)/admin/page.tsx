@@ -1,41 +1,24 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
-import { onValue, ref } from "firebase/database";
-import { MapPin, Users, Clock, Activity } from "lucide-react";
+import { MapPin, Users, Clock, Activity, Loader2 } from "lucide-react";
 
 import { env } from "~/env";
-import { rtdb } from "~/lib/firebaseClient";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
-import type { Shuttle, FirebaseDriverData } from "~/types";
+import { useActiveShuttles } from "~/hooks/use-shuttles";
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
     googleMapsApiKey: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
   });
-  const [shuttles, setShuttles] = useState<Shuttle[]>([]);
 
-  useMemo(() => {
-    const unsub = onValue(ref(rtdb, "/activeDrivers"), (snap) => {
-      const val = snap.val() as Record<string, FirebaseDriverData> | null;
-      const list: Shuttle[] = val
-        ? Object.entries(val).map(([driverId, v]) => ({
-            id: v.busId ?? driverId,
-            lat: v.latitude,
-            lng: v.longitude,
-            heading: v.heading,
-            updatedAt: v.timestamp,
-            driverId: driverId,
-            driverEmail: v.driverEmail,
-            isActive: v.isActive,
-          }))
-        : [];
-      setShuttles(list);
-    });
-    return () => unsub();
-  }, []);
+  const {
+    data: shuttles = [],
+    isLoading: shuttlesLoading,
+    error: shuttlesError,
+  } = useActiveShuttles();
 
   const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
   const activeShuttles = shuttles.filter((s) => s.isActive);
@@ -46,8 +29,23 @@ export default function AdminDashboardPage() {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
-          <div className="border-primary size-8 animate-spin rounded-full border-4 border-t-transparent"></div>
+          <Loader2 className="mx-auto h-8 w-8 animate-spin" />
           <p className="text-muted-foreground mt-2 text-sm">Loading map...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (shuttlesError) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">Failed to load shuttle data</p>
+          <p className="text-muted-foreground mt-1 text-sm">
+            {shuttlesError instanceof Error
+              ? shuttlesError.message
+              : "Unknown error"}
+          </p>
         </div>
       </div>
     );
@@ -153,7 +151,14 @@ export default function AdminDashboardPage() {
               <CardTitle>Shuttle Status</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              {shuttles.length === 0 ? (
+              {shuttlesLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span className="text-muted-foreground text-sm">
+                    Loading shuttles...
+                  </span>
+                </div>
+              ) : shuttles.length === 0 ? (
                 <p className="text-muted-foreground text-sm">
                   No shuttles currently active
                 </p>

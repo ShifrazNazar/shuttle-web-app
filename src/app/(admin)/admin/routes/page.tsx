@@ -183,7 +183,7 @@ export default function RoutesPage() {
       setLocations(locationsData);
     } catch (error) {
       console.error("Error fetching routes data:", error);
-      toast.error("Failed to load routes data. Please try again.");
+      toast.error("Failed to load routes");
     }
   };
 
@@ -219,15 +219,11 @@ export default function RoutesPage() {
   const assignRouteToDriver = async () => {
     if (!assigningRoute || !selectedDriverId) return;
     if (!currentAdminUser) {
-      toast.error(
-        "Admin user information not available. Please refresh the page.",
-      );
+      toast.error("Admin info unavailable");
       return;
     }
     if (currentAdminUser.role !== "admin") {
-      toast.error(
-        "You don't have permission to assign routes. Admin access required.",
-      );
+      toast.error("Admin access required");
       return;
     }
 
@@ -262,7 +258,7 @@ export default function RoutesPage() {
       );
 
       if (driverAlreadyAssignedToThisRoute) {
-        toast.error("This driver is already assigned to this route.");
+        toast.error("Driver already assigned");
         return;
       }
 
@@ -272,9 +268,7 @@ export default function RoutesPage() {
       );
 
       if (driverTotalAssignments.length >= 3) {
-        toast.warning("Driver has many route assignments", {
-          description: `${selectedDriver.username} is already assigned to ${driverTotalAssignments.length} routes. Consider workload balance.`,
-        });
+        toast.warning("Driver has many assignments");
         // Continue with assignment but show warning
       }
 
@@ -286,12 +280,10 @@ export default function RoutesPage() {
       setAssigningRoute(null);
       setSelectedDriverId("");
 
-      toast.success(
-        `Route ${assigningRoute.routeName} assigned to ${selectedDriver.username} successfully!`,
-      );
+      toast.success("Route assigned to driver");
     } catch (error) {
       console.error("Error assigning route:", error);
-      toast.error("Failed to assign route. Please try again.");
+      toast.error("Assignment failed");
     } finally {
       setAssignmentLoading(false);
     }
@@ -333,9 +325,7 @@ export default function RoutesPage() {
   const deleteRouteAssignment = async (routeId: string, driverId?: string) => {
     if (!showDeleteConfirm) return;
     if (!currentAdminUser) {
-      toast.error(
-        "Admin user information not available. Please refresh the page.",
-      );
+      toast.error("Admin info unavailable");
       return;
     }
     if (currentAdminUser.role !== "admin") {
@@ -353,14 +343,14 @@ export default function RoutesPage() {
           (a) => a.routeId === routeId && a.driverId === driverId,
         );
         if (!assignment) {
-          toast.error("No assignment found for this driver on this route.");
+          toast.error("Assignment not found");
           return;
         }
       } else {
         // Delete all assignments for the route
         assignment = routeAssignments.find((a) => a.routeId === routeId);
         if (!assignment) {
-          toast.error("No assignment found for this route.");
+          toast.error("Assignment not found");
           return;
         }
       }
@@ -371,10 +361,10 @@ export default function RoutesPage() {
       const message = driverId
         ? `Driver assignment removed successfully!`
         : "Route assignment deleted successfully!";
-      toast.success(message);
+      toast.success("Assignment deleted");
     } catch (error) {
       console.error("Error deleting route assignment:", error);
-      toast.error("Failed to delete route assignment. Please try again.");
+      toast.error("Delete failed");
     }
   };
 
@@ -428,9 +418,7 @@ export default function RoutesPage() {
 
   const addRoute = async () => {
     if (!currentAdminUser) {
-      toast.error(
-        "Admin user information not available. Please refresh the page.",
-      );
+      toast.error("Admin info unavailable");
       return;
     }
     if (currentAdminUser.role !== "admin") {
@@ -442,23 +430,23 @@ export default function RoutesPage() {
 
     // Validate required fields
     if (!newRoute.routeName?.trim()) {
-      toast.error("Route name is required");
+      toast.error("Route name required");
       return;
     }
     if (!newRoute.origin?.trim()) {
-      toast.error("Origin location is required");
+      toast.error("Origin required");
       return;
     }
     if (!newRoute.destination?.trim()) {
-      toast.error("Destination location is required");
+      toast.error("Destination required");
       return;
     }
     if (!newRoute.operatingDays || newRoute.operatingDays.length === 0) {
-      toast.error("At least one operating day must be selected");
+      toast.error("Select operating days");
       return;
     }
     if (!newRoute.schedule || newRoute.schedule.length === 0) {
-      toast.error("At least one schedule time must be added");
+      toast.error("Add schedule times");
       return;
     }
 
@@ -504,12 +492,10 @@ export default function RoutesPage() {
         specialNotes: "",
       });
 
-      toast.success(`Route "${routeData.routeName}" added successfully!`);
+      toast.success("Route added");
     } catch (error) {
       console.error("Error adding route:", error);
-      toast.error(
-        `Failed to add route: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      toast.error("Add route failed");
     } finally {
       setAddRouteLoading(false);
     }

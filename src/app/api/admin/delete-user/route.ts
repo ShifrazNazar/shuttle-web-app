@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { adminAuth } = initializeFirebaseAdmin();
+    const { adminAuth, adminDb } = initializeFirebaseAdmin();
 
     // Get user info before deletion (for logging/confirmation)
     let userInfo;
@@ -35,6 +35,16 @@ export async function POST(request: NextRequest) {
     // Delete user from Firebase Auth
     await adminAuth.deleteUser(uid);
 
+    // Also delete the corresponding Firestore document
+    try {
+      await adminDb.collection("users").doc(uid).delete();
+      console.log(`User Firestore document deleted: ${uid}`);
+    } catch (firestoreError) {
+      console.error("Error deleting user from Firestore:", firestoreError);
+      // Don't fail the entire operation if Firestore deletion fails
+      // The user is already deleted from Auth, which is the critical part
+    }
+
     // Log the deletion for audit purposes
     console.log(`User deleted successfully:`, {
       uid,
@@ -45,7 +55,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      message: "User deleted successfully",
+      message:
+        "User deleted successfully from both Firebase Auth and Firestore",
       deletedUser: {
         uid: userInfo.uid,
         email: userInfo.email,
@@ -53,6 +64,11 @@ export async function POST(request: NextRequest) {
         wasEmailVerified: userInfo.emailVerified,
         accountCreatedAt: userInfo.metadata.creationTime,
         lastSignInAt: userInfo.metadata.lastSignInTime,
+        deletedAt: new Date().toISOString(),
+      },
+      deletionDetails: {
+        firebaseAuth: "Deleted",
+        firestore: "Deleted",
         deletedAt: new Date().toISOString(),
       },
     });

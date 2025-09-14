@@ -12,7 +12,7 @@ import {
   writeBatch,
   getDoc,
 } from "firebase/firestore";
-import { toast } from "sonner";
+import { showToast } from "~/lib/toast";
 
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
@@ -245,19 +245,13 @@ export default function UsersPage() {
               displayName: driverFormData.username,
             });
 
-            toast.success("Driver Updated Successfully!", {
-              description: `Driver profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${driverFormData.email}\n• Display Name: ${driverFormData.username}`,
-            });
+            showToast.userUpdated("Driver");
           } catch (adminError) {
             console.error("Admin API error:", adminError);
-            toast.warning("Driver Partially Updated", {
-              description: `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
-            });
+            showToast.error("Update partially failed");
           }
         } else {
-          toast.warning("Driver Updated (Firestore Only)", {
-            description: `Driver updated in Firestore but no Firebase Auth UID found.\n\nThis might be an older account without proper Auth integration.`,
-          });
+          showToast.error("Update failed - no Auth UID");
         }
       } else {
         // Create new driver using backend API
@@ -282,9 +276,7 @@ export default function UsersPage() {
           });
           setShowPasswordModal(true);
 
-          toast.success("Driver Created Successfully!", {
-            description: `New driver account created. Check the popup for login credentials.`,
-          });
+          showToast.userCreated("Driver");
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
           let errorMessage = "Failed to create driver account.";
@@ -306,9 +298,7 @@ export default function UsersPage() {
             errorMessage = "Password is too weak (minimum 6 characters).";
           }
 
-          toast.error("Account Creation Error", {
-            description: errorMessage,
-          });
+          showToast.createUserError(errorMessage);
           return;
         }
       }
@@ -323,9 +313,7 @@ export default function UsersPage() {
         error instanceof Error
           ? error.message
           : "An unexpected error occurred.";
-      toast.error("Error", {
-        description: errorMessage,
-      });
+      showToast.error(errorMessage);
     }
   };
 
@@ -354,14 +342,10 @@ export default function UsersPage() {
               displayName: studentFormData.username,
             });
 
-            toast.success("Student Updated Successfully!", {
-              description: `Student profile updated:\n• Firestore data: ✓ Updated\n• Firebase Auth: ✓ Updated\n• Email: ${studentFormData.email}\n• Display Name: ${studentFormData.username}`,
-            });
+            showToast.userUpdated("Student");
           } catch (adminError) {
             console.error("Admin API error:", adminError);
-            toast.warning("Student Partially Updated", {
-              description: `Firestore updated successfully, but Firebase Auth update failed.\n\nFirestore: ✓ Updated\nFirebase Auth: ✗ Failed\n\nReason: ${adminError instanceof Error ? adminError.message : "Unknown error"}\n\nThe user can still login with their existing credentials.`,
-            });
+            showToast.error("Update partially failed");
           }
         }
       } else {
@@ -386,9 +370,7 @@ export default function UsersPage() {
           });
           setShowPasswordModal(true);
 
-          toast.success("Student Created Successfully!", {
-            description: `New student account created. Check the popup for login credentials.`,
-          });
+          showToast.userCreated("Student");
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
           let errorMessage = "Failed to create student account.";
@@ -410,9 +392,7 @@ export default function UsersPage() {
             errorMessage = "Password is too weak (minimum 6 characters).";
           }
 
-          toast.error("Account Creation Error", {
-            description: errorMessage,
-          });
+          showToast.createUserError(errorMessage);
           return;
         }
       }
@@ -423,12 +403,9 @@ export default function UsersPage() {
       await fetchUsers();
     } catch (error: unknown) {
       console.error("Error saving student:", error);
-      toast.error("Error", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "An unexpected error occurred.",
-      });
+      showToast.error(
+        error instanceof Error ? error.message : "Unexpected error",
+      );
     }
   };
 
@@ -462,19 +439,13 @@ export default function UsersPage() {
       await fetchUsers();
 
       if (newAssignment) {
-        toast.success("Bus Assigned Successfully!", {
-          description: `Bus ${newAssignment} has been successfully assigned to ${assigningDriver.username}.\n\nThe driver can now access their assigned bus from their dashboard.`,
-        });
+        showToast.busAssigned();
       } else {
-        toast.success("Bus Assignment Cleared!", {
-          description: `Bus assignment has been removed from ${assigningDriver.username}.\n\nThe driver no longer has access to any assigned bus.`,
-        });
+        showToast.success("Bus assignment cleared");
       }
     } catch (error) {
       console.error("Error assigning bus:", error);
-      toast.error("Error", {
-        description: "Failed to assign bus. Please try again.",
-      });
+      showToast.assignBusError("Failed to assign bus");
     }
   };
 
@@ -483,16 +454,12 @@ export default function UsersPage() {
     if (!resettingPasswordUser) return;
 
     if (passwordResetData.newPassword !== passwordResetData.confirmPassword) {
-      toast.error("Password Mismatch", {
-        description: "New password and confirmation password do not match.",
-      });
+      showToast.error("Passwords don't match");
       return;
     }
 
     if (passwordResetData.newPassword.length < 6) {
-      toast.error("Weak Password", {
-        description: "Password must be at least 6 characters long.",
-      });
+      showToast.error("Password too short");
       return;
     }
 
@@ -503,13 +470,9 @@ export default function UsersPage() {
           newPassword: passwordResetData.newPassword,
         });
 
-        toast.success("Password Reset Successfully!", {
-          description: `Password has been reset for ${resettingPasswordUser.username}.\n\nNew password: ${passwordResetData.newPassword}\n\n⚠️ Important:\n• Send this password securely to the user\n• The old password no longer works\n• User will need to sign in again\n• Advise them to change password after login`,
-        });
+        showToast.passwordReset();
       } else {
-        toast.warning("Password Reset Not Available", {
-          description: `Cannot reset password for ${resettingPasswordUser.username}.\n\nNo Firebase Auth UID found. This might be an older account without proper Auth integration.`,
-        });
+        showToast.error("Reset not available - no Auth UID");
       }
 
       setShowResetPasswordModal(false);
@@ -517,12 +480,9 @@ export default function UsersPage() {
       setPasswordResetData({ newPassword: "", confirmPassword: "" });
     } catch (error: unknown) {
       console.error("Error resetting password:", error);
-      toast.error("Password Reset Failed", {
-        description:
-          error instanceof Error
-            ? error.message
-            : "Failed to reset password. Please try again.",
-      });
+      showToast.passwordResetError(
+        error instanceof Error ? error.message : "Reset failed",
+      );
     }
   };
 
@@ -551,15 +511,10 @@ export default function UsersPage() {
       await deleteDoc(doc(db, "users", driver.uid || driverId));
 
       await fetchUsers();
-      toast.success("Driver Deleted Successfully", {
-        description: `${driver.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${driver.uid ? "Deleted" : "Not applicable"}\n✓ Bus Assignment: Cleared`,
-      });
+      showToast.userDeleted("Driver");
     } catch (error) {
       console.error("Error deleting driver:", error);
-      toast.error("Deletion Failed", {
-        description:
-          "Failed to delete driver account completely. Some data may still exist.",
-      });
+      showToast.deleteUserError("Delete failed");
     }
   };
 
@@ -588,15 +543,10 @@ export default function UsersPage() {
       await deleteDoc(doc(db, "users", student.uid || studentId));
 
       await fetchUsers();
-      toast.success("Student Deleted Successfully", {
-        description: `${student.username}'s account has been permanently deleted.\n\n✓ Firestore Profile: Deleted\n✓ Firebase Auth Account: ${student.uid ? "Deleted" : "Not applicable"}`,
-      });
+      showToast.userDeleted("Student");
     } catch (error) {
       console.error("Error deleting student:", error);
-      toast.error("Deletion Failed", {
-        description:
-          "Failed to delete student account completely. Some data may still exist.",
-      });
+      showToast.deleteUserError("Delete failed");
     }
   };
 
@@ -890,7 +840,7 @@ export default function UsersPage() {
             placeholder="Search students..."
             value={studentSearchTerm}
             onChange={(e) => setStudentSearchTerm(e.target.value)}
-            className="border-input bg-background text-foreground placeholder:text-muted-foreground focus:ring-ring w-full rounded-md border py-2 py-3 pr-3 pl-10 focus:border-transparent focus:ring-2 focus:outline-none"
+            className="border-input bg-background text-foreground placeholder:text-muted-foreground focus:ring-ring w-full rounded-md border py-3 pr-3 pl-10 focus:border-transparent focus:ring-2 focus:outline-none"
           />
         </div>
 
@@ -1423,113 +1373,108 @@ export default function UsersPage() {
 
       {/* Password Display Modal */}
       {showPasswordModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6">
-            <div className="mb-4 text-center">
-              <h2 className="text-xl font-semibold text-green-600">
-                ✅ Account Created Successfully!
-              </h2>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Please copy the login credentials below
-              </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white shadow-xl">
+            {/* Header */}
+            <div className="rounded-t-xl border-b bg-green-50 px-6 py-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-100">
+                  <span className="text-xl text-green-600">✓</span>
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-gray-900">
+                    Account Created
+                  </h2>
+                  <p className="text-sm text-gray-600">
+                    {newUserInfo.role} account ready
+                  </p>
+                </div>
+              </div>
             </div>
 
-            <div className="mb-6 space-y-4">
-              {/* User Info */}
-              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-                <h3 className="mb-2 font-semibold text-blue-800">
-                  {newUserInfo.role} Account Details
-                </h3>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Email:</span>
-                    <span className="font-mono text-blue-900">
+            {/* Content */}
+            <div className="space-y-4 p-6">
+              {/* User Details */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                    Email
+                  </label>
+                  <div className="mt-1 rounded-lg border bg-gray-50 p-3">
+                    <span className="font-mono text-sm text-gray-900">
                       {newUserInfo.email}
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-blue-700">Username:</span>
-                    <span className="font-mono text-blue-900">
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                    Username
+                  </label>
+                  <div className="mt-1 rounded-lg border bg-gray-50 p-3">
+                    <span className="font-mono text-sm text-gray-900">
                       {newUserInfo.username}
                     </span>
                   </div>
                 </div>
-              </div>
 
-              {/* Password Section */}
-              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
-                <h3 className="mb-2 font-semibold text-amber-800">
-                  🔑 Temporary Password
-                </h3>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    value={generatedPassword}
-                    readOnly
-                    className="flex-1 rounded border border-amber-300 bg-white px-3 py-2 font-mono text-lg font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    onClick={(e) => e.currentTarget.select()}
-                  />
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(generatedPassword);
-                      toast.success("Password copied to clipboard!");
-                    }}
-                    className="rounded bg-amber-600 px-3 py-2 text-white hover:bg-amber-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
-                    title="Copy password"
-                  >
-                    📋 Copy
-                  </button>
+                <div>
+                  <label className="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                    Temporary Password
+                  </label>
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="text"
+                      value={generatedPassword}
+                      readOnly
+                      className="flex-1 rounded-lg border border-amber-200 bg-amber-50 p-3 font-mono text-sm font-semibold text-amber-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      onClick={(e) => e.currentTarget.select()}
+                    />
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(generatedPassword);
+                        showToast.success("Password copied!");
+                      }}
+                      className="rounded-lg bg-amber-600 px-4 py-3 text-white transition-colors hover:bg-amber-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                      title="Copy password"
+                    >
+                      Copy
+                    </button>
+                  </div>
                 </div>
-                <p className="mt-2 text-xs text-amber-700">
-                  Click the password field to select all, or use the copy button
-                </p>
               </div>
 
-              {/* Instructions */}
-              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
-                <h3 className="mb-2 font-semibold text-green-800">
-                  📱 Next Steps
-                </h3>
-                <ul className="space-y-1 text-sm text-green-700">
-                  <li>
-                    • Share these credentials securely with the{" "}
-                    {newUserInfo.role.toLowerCase()}
-                  </li>
-                  <li>
-                    • {newUserInfo.role} must change password on first login
-                  </li>
-                  <li>• Temporary password will become invalid after change</li>
-                  <li>
-                    •{" "}
-                    {newUserInfo.role === "Driver"
-                      ? "Assign a bus after creation"
-                      : "Student can login immediately"}
-                  </li>
-                </ul>
+              {/* Quick Info */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                <p className="text-xs text-blue-800">
+                  <strong>Note:</strong> User must change password on first
+                  login
+                </p>
               </div>
             </div>
 
-            <div className="flex gap-2">
+            {/* Actions */}
+            <div className="flex gap-3 rounded-b-xl bg-gray-50 px-6 py-4">
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Email: ${newUserInfo.email}\nPassword: ${generatedPassword}`,
+                  );
+                  showToast.success("All credentials copied!");
+                }}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:outline-none"
+              >
+                Copy All
+              </button>
               <button
                 onClick={() => {
                   setShowPasswordModal(false);
                   setGeneratedPassword("");
                   setNewUserInfo({ email: "", username: "", role: "" });
                 }}
-                className="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none"
+                className="flex-1 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none"
               >
-                ✅ Got it!
-              </button>
-              <button
-                onClick={() => {
-                  navigator.clipboard.writeText(
-                    `Email: ${newUserInfo.email}\nPassword: ${generatedPassword}`,
-                  );
-                  toast.success("All credentials copied to clipboard!");
-                }}
-                className="flex-1 rounded-md border border-green-600 px-4 py-2 text-green-600 hover:bg-green-50 focus:ring-2 focus:ring-green-500 focus:outline-none"
-              >
-                📋 Copy All
+                Done
               </button>
             </div>
           </div>
