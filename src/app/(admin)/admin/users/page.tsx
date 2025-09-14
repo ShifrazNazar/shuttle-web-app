@@ -85,6 +85,13 @@ export default function UsersPage() {
     newPassword: "",
     confirmPassword: "",
   });
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [generatedPassword, setGeneratedPassword] = useState("");
+  const [newUserInfo, setNewUserInfo] = useState({
+    email: "",
+    username: "",
+    role: "",
+  });
 
   useEffect(() => {
     void fetchUsers();
@@ -255,15 +262,28 @@ export default function UsersPage() {
       } else {
         // Create new driver using backend API
         try {
-          await callAdminAPI("create-user", {
+          const apiResult = await callAdminAPI("create-user", {
             email: driverFormData.email,
             username: driverFormData.username,
             role: "driver",
             assignedShuttleId: "", // Will be assigned separately
           });
 
+          console.log("API Result:", apiResult); // Debug log
+
+          // Show password in modal for easy copying
+          const tempPassword =
+            (apiResult as any).user?.temporaryPassword || "Not available";
+          setGeneratedPassword(tempPassword);
+          setNewUserInfo({
+            email: driverFormData.email,
+            username: driverFormData.username,
+            role: "Driver",
+          });
+          setShowPasswordModal(true);
+
           toast.success("Driver Created Successfully!", {
-            description: `New driver account created:\n\n📧 Email: ${driverFormData.email}\n👤 Username: ${driverFormData.username}\n🔑 Default Password: Driver123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Assign a bus to the driver\n• Send login credentials to the driver\n• Driver can change password after first login`,
+            description: `New driver account created. Check the popup for login credentials.`,
           });
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
@@ -347,14 +367,27 @@ export default function UsersPage() {
       } else {
         // Create new student using backend API
         try {
-          await callAdminAPI("create-user", {
+          const apiResult = await callAdminAPI("create-user", {
             email: studentFormData.email,
             username: studentFormData.username,
             role: "student",
           });
 
+          console.log("API Result:", apiResult); // Debug log
+
+          // Show password in modal for easy copying
+          const tempPassword =
+            (apiResult as any).user?.temporaryPassword || "Not available";
+          setGeneratedPassword(tempPassword);
+          setNewUserInfo({
+            email: studentFormData.email,
+            username: studentFormData.username,
+            role: "Student",
+          });
+          setShowPasswordModal(true);
+
           toast.success("Student Created Successfully!", {
-            description: `New student account created:\n\n📧 Email: ${studentFormData.email}\n👤 Username: ${studentFormData.username}\n🔑 Default Password: Student123!\n\n✓ Firebase Auth: Created\n✓ Firestore Profile: Created\n\nNext Steps:\n• Send login credentials to the student\n• Student can change password after first login`,
+            description: `New student account created. Check the popup for login credentials.`,
           });
         } catch (apiError: unknown) {
           console.error("Admin API error:", apiError);
@@ -979,8 +1012,8 @@ export default function UsersPage() {
                   <br />• Backend API creates Firebase Auth account securely
                   <br />• Firestore profile automatically linked to Auth account
                   <br />• Bus assignment is done separately after creation
-                  <br />• Default password: <strong>Driver123!</strong>
-                  <br />• Driver should change password after first login
+                  <br />• Secure random password generated automatically
+                  <br />• Driver must change password on first login
                   <br />• All operations handled server-side for security
                 </p>
               </div>
@@ -1079,8 +1112,8 @@ export default function UsersPage() {
                   <strong>Creating New Student:</strong>
                   <br />• Backend API creates Firebase Auth account securely
                   <br />• Firestore profile automatically linked to Auth account
-                  <br />• Default password: <strong>Student123!</strong>
-                  <br />• Student should change password after first login
+                  <br />• Secure random password generated automatically
+                  <br />• Student must change password on first login
                   <br />• All operations handled server-side for security
                 </p>
               </div>
@@ -1384,6 +1417,121 @@ export default function UsersPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Password Display Modal */}
+      {showPasswordModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6">
+            <div className="mb-4 text-center">
+              <h2 className="text-xl font-semibold text-green-600">
+                ✅ Account Created Successfully!
+              </h2>
+              <p className="text-muted-foreground mt-1 text-sm">
+                Please copy the login credentials below
+              </p>
+            </div>
+
+            <div className="mb-6 space-y-4">
+              {/* User Info */}
+              <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
+                <h3 className="mb-2 font-semibold text-blue-800">
+                  {newUserInfo.role} Account Details
+                </h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">Email:</span>
+                    <span className="font-mono text-blue-900">
+                      {newUserInfo.email}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-blue-700">Username:</span>
+                    <span className="font-mono text-blue-900">
+                      {newUserInfo.username}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Password Section */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <h3 className="mb-2 font-semibold text-amber-800">
+                  🔑 Temporary Password
+                </h3>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    value={generatedPassword}
+                    readOnly
+                    className="flex-1 rounded border border-amber-300 bg-white px-3 py-2 font-mono text-lg font-bold text-amber-900 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    onClick={(e) => e.currentTarget.select()}
+                  />
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(generatedPassword);
+                      toast.success("Password copied to clipboard!");
+                    }}
+                    className="rounded bg-amber-600 px-3 py-2 text-white hover:bg-amber-700 focus:ring-2 focus:ring-amber-500 focus:outline-none"
+                    title="Copy password"
+                  >
+                    📋 Copy
+                  </button>
+                </div>
+                <p className="mt-2 text-xs text-amber-700">
+                  Click the password field to select all, or use the copy button
+                </p>
+              </div>
+
+              {/* Instructions */}
+              <div className="rounded-lg border border-green-200 bg-green-50 p-4">
+                <h3 className="mb-2 font-semibold text-green-800">
+                  📱 Next Steps
+                </h3>
+                <ul className="space-y-1 text-sm text-green-700">
+                  <li>
+                    • Share these credentials securely with the{" "}
+                    {newUserInfo.role.toLowerCase()}
+                  </li>
+                  <li>
+                    • {newUserInfo.role} must change password on first login
+                  </li>
+                  <li>• Temporary password will become invalid after change</li>
+                  <li>
+                    •{" "}
+                    {newUserInfo.role === "Driver"
+                      ? "Assign a bus after creation"
+                      : "Student can login immediately"}
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setShowPasswordModal(false);
+                  setGeneratedPassword("");
+                  setNewUserInfo({ email: "", username: "", role: "" });
+                }}
+                className="flex-1 rounded-md bg-green-600 px-4 py-2 text-white hover:bg-green-700 focus:ring-2 focus:ring-green-500 focus:outline-none"
+              >
+                ✅ Got it!
+              </button>
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(
+                    `Email: ${newUserInfo.email}\nPassword: ${generatedPassword}`,
+                  );
+                  toast.success("All credentials copied to clipboard!");
+                }}
+                className="flex-1 rounded-md border border-green-600 px-4 py-2 text-green-600 hover:bg-green-50 focus:ring-2 focus:ring-green-500 focus:outline-none"
+              >
+                📋 Copy All
+              </button>
+            </div>
           </div>
         </div>
       )}

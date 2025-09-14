@@ -14,6 +14,13 @@ export async function POST(request: NextRequest) {
     const body = (await request.json()) as CreateUserRequest;
     const { email, username, role, assignedShuttleId } = body;
 
+    console.log("Create user request:", {
+      email,
+      username,
+      role,
+      assignedShuttleId,
+    });
+
     // Validate required fields
     if (!email || !username || !role) {
       return NextResponse.json(
@@ -50,7 +57,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const { adminAuth, adminDb } = initializeFirebaseAdmin();
+    let adminAuth, adminDb;
+    try {
+      const admin = initializeFirebaseAdmin();
+      adminAuth = admin.adminAuth;
+      adminDb = admin.adminDb;
+    } catch (error) {
+      console.error("Failed to initialize Firebase Admin:", error);
+      return NextResponse.json(
+        { error: "Failed to initialize Firebase Admin SDK" },
+        { status: 500 },
+      );
+    }
 
     // Check if user already exists
     try {
@@ -75,18 +93,28 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Generate a secure default password
-    const defaultPassword = role === "driver" ? "Driver123!" : "Student123!";
+    // Generate a secure random password
+    const generateSecurePassword = (): string => {
+      const chars =
+        "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*";
+      let password = "";
+      for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    };
+
+    const temporaryPassword = generateSecurePassword();
 
     // Create user in Firebase Auth
     const userRecord = await adminAuth.createUser({
       email,
-      password: defaultPassword,
+      password: temporaryPassword,
       displayName: username,
       emailVerified: false,
     });
 
-    // Prepare user data for Firestore
+    // Prepare user data for Firestore (no password data stored)
     const userData = {
       uid: userRecord.uid,
       email: userRecord.email,
@@ -94,8 +122,7 @@ export async function POST(request: NextRequest) {
       role,
       createdAt: new Date(),
       updatedAt: new Date(),
-      defaultPassword,
-      passwordChanged: false, // Track if user has changed their default password
+      requiresPasswordChange: false,
       ...(role === "driver" && { assignedShuttleId }),
     };
 
@@ -114,7 +141,7 @@ export async function POST(request: NextRequest) {
         assignedShuttleId: role === "driver" ? assignedShuttleId : undefined,
         createdAt: userData.createdAt,
         updatedAt: userData.updatedAt,
-        defaultPassword,
+        temporaryPassword, // Return the generated password for admin to share securely
       },
     });
   } catch (error: unknown) {
