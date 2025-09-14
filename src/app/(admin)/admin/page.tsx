@@ -2,13 +2,25 @@
 
 import { useMemo } from "react";
 import { GoogleMap, Marker, useLoadScript } from "@react-google-maps/api";
-import { MapPin, Users, Clock, Activity, Loader2 } from "lucide-react";
+import {
+  MapPin,
+  Users,
+  Clock,
+  Activity,
+  Loader2,
+  Car,
+  Route,
+  UserCheck,
+} from "lucide-react";
 
 import { env } from "~/env";
 import { Card, CardContent, CardHeader, CardTitle } from "~/components/ui/card";
 import { Badge } from "~/components/ui/badge";
 import { useShuttles } from "~/hooks/use-shuttles";
 import { useActiveDrivers } from "~/hooks/use-active-drivers";
+import { useState, useEffect } from "react";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "~/lib/firebaseClient";
 
 export default function AdminDashboardPage() {
   const { isLoaded } = useLoadScript({
@@ -27,17 +39,74 @@ export default function AdminDashboardPage() {
     error: driversError,
   } = useActiveDrivers();
 
+  // Real data state
+  const [routes, setRoutes] = useState<any[]>([]);
+  const [users, setUsers] = useState<any[]>([]);
+  const [routeAssignments, setRouteAssignments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
   const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
   const activeShuttles = shuttles.filter((s) => s.status === "active");
-  const totalPassengers = 234; // Mock data
-  const averageWaitTime = 8; // Mock data
 
-  if (!isLoaded) {
+  // Real data calculations
+  const totalRoutes = routes.length;
+  const activeRoutes = routes.filter((r) => r.isActive !== false).length;
+  const totalDrivers = users.filter((u) => u.role === "driver").length;
+  const totalStudents = users.filter((u) => u.role === "student").length;
+  const assignedShuttles = shuttles.filter((s) => s.driverId).length;
+  const availableShuttles = shuttles.filter(
+    (s) => s.status === "active" && !s.driverId,
+  ).length;
+
+  // Fetch real data
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+
+        // Fetch routes
+        const routesSnapshot = await getDocs(collection(db, "routes"));
+        const routesData = routesSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRoutes(routesData);
+
+        // Fetch users
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        const usersData = usersSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setUsers(usersData);
+
+        // Fetch route assignments
+        const assignmentsSnapshot = await getDocs(
+          collection(db, "routeAssignments"),
+        );
+        const assignmentsData = assignmentsSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+        setRouteAssignments(assignmentsData);
+      } catch (error) {
+        console.error("Error fetching dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (!isLoaded || loading) {
     return (
       <div className="flex h-96 items-center justify-center">
         <div className="text-center">
           <Loader2 className="mx-auto h-8 w-8 animate-spin" />
-          <p className="text-muted-foreground mt-2 text-sm">Loading map...</p>
+          <p className="text-muted-foreground mt-2 text-sm">
+            {!isLoaded ? "Loading map..." : "Loading dashboard data..."}
+          </p>
         </div>
       </div>
     );
@@ -71,15 +140,13 @@ export default function AdminDashboardPage() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">
-              Active Shuttles
-            </CardTitle>
+            <CardTitle className="text-sm font-medium">Live Tracking</CardTitle>
             <Activity className="text-muted-foreground size-4" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{activeDrivers.length}</div>
             <p className="text-muted-foreground text-xs">
-              {activeDrivers.length} currently tracking
+              {activeDrivers.length} drivers currently sharing location
             </p>
           </CardContent>
         </Card>
@@ -87,38 +154,42 @@ export default function AdminDashboardPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Passengers
+              Total Students
             </CardTitle>
             <Users className="text-muted-foreground size-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalPassengers}</div>
-            <p className="text-muted-foreground text-xs">+12% from yesterday</p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Wait Time</CardTitle>
-            <Clock className="text-muted-foreground size-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{averageWaitTime}min</div>
+            <div className="text-2xl font-bold">{totalStudents}</div>
             <p className="text-muted-foreground text-xs">
-              -2min from yesterday
+              {totalDrivers} drivers, {totalStudents} students
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Routes Active</CardTitle>
-            <MapPin className="text-muted-foreground size-4" />
+            <CardTitle className="text-sm font-medium">Shuttle Fleet</CardTitle>
+            <Car className="text-muted-foreground size-4" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">5</div>
+            <div className="text-2xl font-bold">
+              {assignedShuttles}/{shuttles.length}
+            </div>
             <p className="text-muted-foreground text-xs">
-              All routes operational
+              {assignedShuttles} assigned, {availableShuttles} available
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Active Routes</CardTitle>
+            <Route className="text-muted-foreground size-4" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{activeRoutes}</div>
+            <p className="text-muted-foreground text-xs">
+              {activeRoutes} of {totalRoutes} routes operational
             </p>
           </CardContent>
         </Card>
@@ -158,7 +229,7 @@ export default function AdminDashboardPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Shuttle Status</CardTitle>
+              <CardTitle>Live Shuttle Tracking</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {driversLoading ? (
@@ -169,46 +240,97 @@ export default function AdminDashboardPage() {
                   </span>
                 </div>
               ) : activeDrivers.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  No drivers currently tracking
-                </p>
+                <div className="py-8 text-center">
+                  <Car className="text-muted-foreground mx-auto mb-2 h-12 w-12" />
+                  <p className="text-muted-foreground text-sm">
+                    No drivers currently sharing location
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Drivers need to start location tracking in their app
+                  </p>
+                </div>
               ) : (
-                activeDrivers.map((driver) => (
-                  <div
-                    key={driver.driverId}
-                    className="flex items-center justify-between"
-                  >
-                    <div>
-                      <p className="font-medium">Bus {driver.busId}</p>
-                      <p className="text-muted-foreground text-sm">
-                        Driver: {driver.driverEmail || "Unknown"}
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        Last update:{" "}
-                        {new Date(driver.timestamp).toLocaleTimeString()}
-                      </p>
+                activeDrivers.map((driver) => {
+                  // Find shuttle details
+                  const shuttle = shuttles.find((s) => s.id === driver.busId);
+                  return (
+                    <div
+                      key={driver.driverId}
+                      className="flex items-center justify-between rounded-lg border bg-green-50 p-3"
+                    >
+                      <div className="flex-1">
+                        <div className="mb-1 flex items-center gap-2">
+                          <p className="font-medium">Bus {driver.busId}</p>
+                          {shuttle && (
+                            <Badge variant="outline" className="text-xs">
+                              {shuttle.licensePlate}
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-muted-foreground text-sm">
+                          Driver: {driver.driverEmail || "Unknown"}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          Last update:{" "}
+                          {new Date(driver.timestamp).toLocaleTimeString()}
+                        </p>
+                        {shuttle && (
+                          <p className="text-muted-foreground text-xs">
+                            {shuttle.model} ({shuttle.capacity} seats)
+                          </p>
+                        )}
+                      </div>
+                      <Badge variant="default" className="bg-green-600">
+                        Live
+                      </Badge>
                     </div>
-                    <Badge variant="default">Live Tracking</Badge>
-                  </div>
-                ))
+                  );
+                })
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
+              <CardTitle>System Overview</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              <button className="bg-primary text-primary-foreground hover:bg-primary/90 w-full rounded-md px-3 py-2 text-sm">
-                Emergency Stop All
-              </button>
-              <button className="hover:bg-muted w-full rounded-md border px-3 py-2 text-sm">
-                Broadcast Message
-              </button>
-              <button className="hover:bg-muted w-full rounded-md border px-3 py-2 text-sm">
-                Generate Report
-              </button>
+            <CardContent className="space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Total Routes
+                </span>
+                <span className="font-medium">{totalRoutes}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Active Routes
+                </span>
+                <span className="font-medium text-green-600">
+                  {activeRoutes}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Fleet Size
+                </span>
+                <span className="font-medium">{shuttles.length}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Assigned Shuttles
+                </span>
+                <span className="font-medium text-blue-600">
+                  {assignedShuttles}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground text-sm">
+                  Available Shuttles
+                </span>
+                <span className="font-medium text-orange-600">
+                  {availableShuttles}
+                </span>
+              </div>
             </CardContent>
           </Card>
         </div>
