@@ -95,6 +95,17 @@ export default function RoutesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null,
   );
+  const [showAddRouteModal, setShowAddRouteModal] = useState(false);
+  const [addRouteLoading, setAddRouteLoading] = useState(false);
+  const [newRoute, setNewRoute] = useState<Partial<RouteData>>({
+    routeId: "",
+    routeName: "",
+    origin: "",
+    destination: "",
+    operatingDays: [],
+    schedule: [],
+    specialNotes: "",
+  });
   const [currentAdminUser, setCurrentAdminUser] = useState<{
     id: string;
     email: string;
@@ -444,6 +455,151 @@ export default function RoutesPage() {
     return { status: "completed", text: "Service Ended" };
   };
 
+  const generateRouteId = () => {
+    const existingIds = routes.map((route) => route.routeId);
+    let routeNumber = 1;
+    let newId = `R${routeNumber.toString().padStart(3, "0")}`;
+
+    while (existingIds.includes(newId)) {
+      routeNumber++;
+      newId = `R${routeNumber.toString().padStart(3, "0")}`;
+    }
+
+    return newId;
+  };
+
+  const handleAddRoute = () => {
+    setNewRoute({
+      routeId: generateRouteId(),
+      routeName: "",
+      origin: "",
+      destination: "",
+      operatingDays: [],
+      schedule: ["08:00"], // Add a default schedule time
+      specialNotes: "",
+    });
+    setShowAddRouteModal(true);
+  };
+
+  const addRoute = async () => {
+    if (!currentAdminUser) {
+      toast.error(
+        "Admin user information not available. Please refresh the page.",
+      );
+      return;
+    }
+    if (currentAdminUser.role !== "admin") {
+      toast.error(
+        "You don't have permission to add routes. Admin access required.",
+      );
+      return;
+    }
+
+    // Validate required fields
+    if (!newRoute.routeName?.trim()) {
+      toast.error("Route name is required");
+      return;
+    }
+    if (!newRoute.origin?.trim()) {
+      toast.error("Origin location is required");
+      return;
+    }
+    if (!newRoute.destination?.trim()) {
+      toast.error("Destination location is required");
+      return;
+    }
+    if (!newRoute.operatingDays || newRoute.operatingDays.length === 0) {
+      toast.error("At least one operating day must be selected");
+      return;
+    }
+    if (!newRoute.schedule || newRoute.schedule.length === 0) {
+      toast.error("At least one schedule time must be added");
+      return;
+    }
+
+    setAddRouteLoading(true);
+    try {
+      const routeData = {
+        routeId: newRoute.routeId!,
+        routeName: newRoute.routeName!.trim(),
+        origin: newRoute.origin!.trim(),
+        destination: newRoute.destination!.trim(),
+        operatingDays: newRoute.operatingDays!,
+        schedule: newRoute.schedule!,
+        isActive: true,
+        createdAt: Timestamp.now(),
+        // Only include specialNotes if it has a value
+        ...(newRoute.specialNotes?.trim() && {
+          specialNotes: newRoute.specialNotes.trim(),
+        }),
+      };
+
+      // Check if route ID already exists
+      const existingRouteDoc = await getDoc(
+        doc(db, "routes", routeData.routeId),
+      );
+      if (existingRouteDoc.exists()) {
+        throw new Error(`Route with ID ${routeData.routeId} already exists`);
+      }
+
+      // Add route to Firestore
+      await setDoc(doc(db, "routes", routeData.routeId), routeData);
+
+      // Refresh routes data
+      await fetchRoutesData();
+
+      setShowAddRouteModal(false);
+      setNewRoute({
+        routeId: "",
+        routeName: "",
+        origin: "",
+        destination: "",
+        operatingDays: [],
+        schedule: [],
+        specialNotes: "",
+      });
+
+      toast.success(`Route "${routeData.routeName}" added successfully!`);
+    } catch (error) {
+      console.error("Error adding route:", error);
+      toast.error(
+        `Failed to add route: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
+    } finally {
+      setAddRouteLoading(false);
+    }
+  };
+
+  const addScheduleTime = () => {
+    setNewRoute((prev) => ({
+      ...prev,
+      schedule: [...(prev.schedule || []), "08:00"],
+    }));
+  };
+
+  const removeScheduleTime = (index: number) => {
+    setNewRoute((prev) => ({
+      ...prev,
+      schedule: prev.schedule?.filter((_, i) => i !== index) || [],
+    }));
+  };
+
+  const updateScheduleTime = (index: number, time: string) => {
+    setNewRoute((prev) => ({
+      ...prev,
+      schedule: prev.schedule?.map((t, i) => (i === index ? time : t)) || [],
+    }));
+  };
+
+  const toggleOperatingDay = (day: string) => {
+    setNewRoute((prev) => ({
+      ...prev,
+      operatingDays: prev.operatingDays?.includes(day)
+        ? prev.operatingDays.filter((d) => d !== day)
+        : [...(prev.operatingDays || []), day],
+    }));
+  };
+
   if (loading || assignmentsLoading || !currentAdminUser) {
     return (
       <div className="space-y-6">
@@ -490,6 +646,7 @@ export default function RoutesPage() {
             Export Routes
           </Button>
           <Button
+            onClick={handleAddRoute}
             disabled={currentAdminUser?.role !== "admin"}
             title={
               currentAdminUser?.role !== "admin"
@@ -865,6 +1022,230 @@ export default function RoutesPage() {
                 {showDeleteConfirm.includes("-")
                   ? "Remove Driver"
                   : "Delete All Assignments"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Route Modal */}
+      {showAddRouteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
+            <h2 className="mb-4 text-xl font-semibold">Add New Route</h2>
+
+            <div className="space-y-4">
+              {/* Route ID (Auto-generated) */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Route ID (Auto-generated)
+                </label>
+                <input
+                  type="text"
+                  value={newRoute.routeId}
+                  disabled
+                  className="border-input bg-muted w-full rounded-md border px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Route Name */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Route Name *
+                </label>
+                <input
+                  type="text"
+                  value={newRoute.routeName || ""}
+                  onChange={(e) =>
+                    setNewRoute((prev) => ({
+                      ...prev,
+                      routeName: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., LRT Bukit Jalil to APU"
+                  className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Origin and Destination */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Origin Location *
+                  </label>
+                  <select
+                    value={newRoute.origin || ""}
+                    onChange={(e) =>
+                      setNewRoute((prev) => ({
+                        ...prev,
+                        origin: e.target.value,
+                      }))
+                    }
+                    className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                    required
+                  >
+                    <option value="">Select origin...</option>
+                    {locations.map((location) => (
+                      <option key={location.locationId} value={location.name}>
+                        {location.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Destination Location *
+                  </label>
+                  <select
+                    value={newRoute.destination || ""}
+                    onChange={(e) =>
+                      setNewRoute((prev) => ({
+                        ...prev,
+                        destination: e.target.value,
+                      }))
+                    }
+                    className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                    required
+                  >
+                    <option value="">Select destination...</option>
+                    {locations.map((location) => (
+                      <option key={location.locationId} value={location.name}>
+                        {location.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Operating Days */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Operating Days *
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday",
+                  ].map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleOperatingDay(day)}
+                      className={`rounded-md border px-3 py-1 text-sm ${
+                        newRoute.operatingDays?.includes(day)
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "bg-background text-foreground border-input hover:bg-muted"
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+                {newRoute.operatingDays &&
+                  newRoute.operatingDays.length === 0 && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Select at least one operating day
+                    </p>
+                  )}
+              </div>
+
+              {/* Schedule Times */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium">
+                    Schedule Times *
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addScheduleTime}
+                  >
+                    <Timer className="mr-1 h-3 w-3" />
+                    Add Time
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {newRoute.schedule?.map((time, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) =>
+                          updateScheduleTime(index, e.target.value)
+                        }
+                        className="border-input bg-background focus:ring-ring w-32 rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeScheduleTime(index)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {(!newRoute.schedule || newRoute.schedule.length === 0) && (
+                  <p className="mt-1 text-sm text-red-600">
+                    Add at least one schedule time
+                  </p>
+                )}
+              </div>
+
+              {/* Special Notes */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Special Notes (Optional)
+                </label>
+                <textarea
+                  value={newRoute.specialNotes || ""}
+                  onChange={(e) =>
+                    setNewRoute((prev) => ({
+                      ...prev,
+                      specialNotes: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., Only operates during exam periods"
+                  className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-6">
+              <Button
+                onClick={addRoute}
+                disabled={addRouteLoading}
+                className="flex-1"
+              >
+                {addRouteLoading ? "Adding Route..." : "Add Route"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowAddRouteModal(false);
+                  setNewRoute({
+                    routeId: "",
+                    routeName: "",
+                    origin: "",
+                    destination: "",
+                    operatingDays: [],
+                    schedule: [],
+                    specialNotes: "",
+                  });
+                }}
+                className="flex-1"
+              >
+                Cancel
               </Button>
             </div>
           </div>
