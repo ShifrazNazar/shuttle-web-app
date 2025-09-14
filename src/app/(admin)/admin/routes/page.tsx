@@ -31,6 +31,8 @@ import {
   Navigation,
   Timer,
   Loader2,
+  Edit,
+  Trash2,
 } from "lucide-react";
 import type {
   RouteData,
@@ -57,12 +59,27 @@ export default function RoutesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null,
   );
+  const [showDeleteRouteConfirm, setShowDeleteRouteConfirm] = useState<
+    string | null
+  >(null);
   const [loadingStates, setLoadingStates] = useState<{
     [key: string]: boolean;
   }>({});
   const [showAddRouteModal, setShowAddRouteModal] = useState(false);
+  const [showEditRouteModal, setShowEditRouteModal] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<RouteData | null>(null);
   const [addRouteLoading, setAddRouteLoading] = useState(false);
+  const [editRouteLoading, setEditRouteLoading] = useState(false);
   const [newRoute, setNewRoute] = useState<Partial<RouteData>>({
+    routeId: "",
+    routeName: "",
+    origin: "",
+    destination: "",
+    operatingDays: [],
+    schedule: [],
+    specialNotes: "",
+  });
+  const [editRoute, setEditRoute] = useState<Partial<RouteData>>({
     routeId: "",
     routeName: "",
     origin: "",
@@ -420,6 +437,20 @@ export default function RoutesPage() {
     setShowAddRouteModal(true);
   };
 
+  const handleEditRoute = (route: RouteData) => {
+    setEditingRoute(route);
+    setEditRoute({
+      routeId: route.routeId,
+      routeName: route.routeName,
+      origin: route.origin,
+      destination: route.destination,
+      operatingDays: route.operatingDays,
+      schedule: route.schedule,
+      specialNotes: route.specialNotes || "",
+    });
+    setShowEditRouteModal(true);
+  };
+
   const addRoute = async () => {
     if (!currentAdminUser) {
       toast.error("Admin info unavailable");
@@ -505,8 +536,157 @@ export default function RoutesPage() {
     }
   };
 
+  const updateRoute = async () => {
+    if (!currentAdminUser) {
+      toast.error("Admin info unavailable");
+      return;
+    }
+    if (currentAdminUser.role !== "admin") {
+      toast.error(
+        "You don't have permission to update routes. Admin access required.",
+      );
+      return;
+    }
+    if (!editingRoute) {
+      toast.error("No route selected for editing");
+      return;
+    }
+
+    // Validate required fields
+    if (!editRoute.routeName?.trim()) {
+      toast.error("Route name required");
+      return;
+    }
+    if (!editRoute.origin?.trim()) {
+      toast.error("Origin required");
+      return;
+    }
+    if (!editRoute.destination?.trim()) {
+      toast.error("Destination required");
+      return;
+    }
+    if (!editRoute.operatingDays || editRoute.operatingDays.length === 0) {
+      toast.error("Select operating days");
+      return;
+    }
+    if (!editRoute.schedule || editRoute.schedule.length === 0) {
+      toast.error("Add schedule times");
+      return;
+    }
+
+    setEditRouteLoading(true);
+    try {
+      const routeData = {
+        routeId: editingRoute.routeId, // Keep original route ID
+        routeName: editRoute.routeName.trim(),
+        origin: editRoute.origin.trim(),
+        destination: editRoute.destination.trim(),
+        operatingDays: editRoute.operatingDays,
+        schedule: editRoute.schedule,
+        isActive: true,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+        // Only include specialNotes if it has a value
+        ...(editRoute.specialNotes?.trim() && {
+          specialNotes: editRoute.specialNotes.trim(),
+        }),
+      };
+
+      // Update route in Firestore
+      await setDoc(doc(db, "routes", editingRoute.routeId), routeData);
+
+      // Refresh routes data
+      await fetchRoutesData();
+
+      setShowEditRouteModal(false);
+      setEditingRoute(null);
+      setEditRoute({
+        routeId: "",
+        routeName: "",
+        origin: "",
+        destination: "",
+        operatingDays: [],
+        schedule: [],
+        specialNotes: "",
+      });
+
+      toast.success("Route updated successfully");
+    } catch (error) {
+      console.error("Error updating route:", error);
+      toast.error("Update route failed");
+    } finally {
+      setEditRouteLoading(false);
+    }
+  };
+
+  const deleteRoute = async (routeId: string) => {
+    if (!currentAdminUser) {
+      toast.error("Admin info unavailable");
+      return;
+    }
+    if (currentAdminUser.role !== "admin") {
+      toast.error(
+        "You don't have permission to delete routes. Admin access required.",
+      );
+      return;
+    }
+
+    setLoadingStates((prev) => ({ ...prev, deleteRoute: true }));
+    try {
+      // Check if route has active assignments
+      const activeAssignments = routeAssignments.filter(
+        (a) => a.routeId === routeId && a.status === "active",
+      );
+
+      if (activeAssignments.length > 0) {
+        const assignedDrivers = activeAssignments
+          .map((a) => a.driverUsername || a.driverEmail || "Unknown")
+          .join(", ");
+        toast.error(
+          `Cannot delete route with active driver assignments. ${activeAssignments.length} driver(s) assigned: ${assignedDrivers}. Remove all assignments first.`,
+        );
+        setShowDeleteRouteConfirm(null);
+        return;
+      }
+
+      // Double-check: Also check if any drivers are currently assigned to this route
+      const routeDrivers = getDriversByRouteId(routeId);
+      if (routeDrivers.length > 0) {
+        const driverNames = routeDrivers
+          .map((d) => d.username || d.email || "Unknown")
+          .join(", ");
+        toast.error(
+          `Cannot delete route with assigned drivers. ${routeDrivers.length} driver(s) assigned: ${driverNames}. Remove all assignments first.`,
+        );
+        setShowDeleteRouteConfirm(null);
+        return;
+      }
+
+      // Delete route from Firestore
+      await deleteDoc(doc(db, "routes", routeId));
+
+      // Refresh routes data
+      await fetchRoutesData();
+
+      setShowDeleteRouteConfirm(null);
+      toast.success("Route deleted successfully");
+    } catch (error) {
+      console.error("Error deleting route:", error);
+      toast.error("Delete route failed");
+    } finally {
+      setLoadingStates((prev) => ({ ...prev, deleteRoute: false }));
+    }
+  };
+
   const addScheduleTime = () => {
     setNewRoute((prev) => ({
+      ...prev,
+      schedule: [...(prev.schedule || []), "08:00"],
+    }));
+  };
+
+  const addEditScheduleTime = () => {
+    setEditRoute((prev) => ({
       ...prev,
       schedule: [...(prev.schedule || []), "08:00"],
     }));
@@ -519,6 +699,13 @@ export default function RoutesPage() {
     }));
   };
 
+  const removeEditScheduleTime = (index: number) => {
+    setEditRoute((prev) => ({
+      ...prev,
+      schedule: prev.schedule?.filter((_, i) => i !== index) || [],
+    }));
+  };
+
   const updateScheduleTime = (index: number, time: string) => {
     setNewRoute((prev) => ({
       ...prev,
@@ -526,8 +713,24 @@ export default function RoutesPage() {
     }));
   };
 
+  const updateEditScheduleTime = (index: number, time: string) => {
+    setEditRoute((prev) => ({
+      ...prev,
+      schedule: prev.schedule?.map((t, i) => (i === index ? time : t)) || [],
+    }));
+  };
+
   const toggleOperatingDay = (day: string) => {
     setNewRoute((prev) => ({
+      ...prev,
+      operatingDays: prev.operatingDays?.includes(day)
+        ? prev.operatingDays.filter((d) => d !== day)
+        : [...(prev.operatingDays || []), day],
+    }));
+  };
+
+  const toggleEditOperatingDay = (day: string) => {
+    setEditRoute((prev) => ({
       ...prev,
       operatingDays: prev.operatingDays?.includes(day)
         ? prev.operatingDays.filter((d) => d !== day)
@@ -706,6 +909,12 @@ export default function RoutesPage() {
                   >
                     {routeStatus.text}
                   </Badge>
+                  {getDriversByRouteId(route.routeId).length > 0 && (
+                    <Badge variant="outline" className="text-blue-600">
+                      {getDriversByRouteId(route.routeId).length} Driver(s)
+                      Assigned
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -817,6 +1026,35 @@ export default function RoutesPage() {
                   >
                     <Users className="mr-2 h-4 w-4" />
                     Assign Driver
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditRoute(route)}
+                    disabled={currentAdminUser?.role !== "admin"}
+                    title="Edit route details"
+                    className="text-blue-600 hover:text-blue-700"
+                  >
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowDeleteRouteConfirm(route.routeId)}
+                    disabled={
+                      currentAdminUser?.role !== "admin" ||
+                      getDriversByRouteId(route.routeId).length > 0
+                    }
+                    title={
+                      getDriversByRouteId(route.routeId).length > 0
+                        ? `Cannot delete route with ${getDriversByRouteId(route.routeId).length} assigned driver(s). Remove assignments first.`
+                        : "Delete route"
+                    }
+                    className="text-red-600 hover:text-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
                   </Button>
                 </div>
               </CardContent>
@@ -1189,6 +1427,326 @@ export default function RoutesPage() {
                 className="flex-1"
               >
                 Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Route Modal */}
+      {showEditRouteModal && editingRoute && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background mx-4 max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg p-6">
+            <h2 className="mb-4 text-xl font-semibold">Edit Route</h2>
+
+            <div className="space-y-4">
+              {/* Route ID (Read-only) */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Route ID
+                </label>
+                <input
+                  type="text"
+                  value={editRoute.routeId}
+                  disabled
+                  className="border-input bg-muted w-full rounded-md border px-3 py-2 text-sm"
+                />
+              </div>
+
+              {/* Route Name */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Route Name *
+                </label>
+                <input
+                  type="text"
+                  value={editRoute.routeName || ""}
+                  onChange={(e) =>
+                    setEditRoute((prev) => ({
+                      ...prev,
+                      routeName: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., LRT Bukit Jalil to APU"
+                  className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                  required
+                />
+              </div>
+
+              {/* Origin and Destination */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Origin Location *
+                  </label>
+                  <select
+                    value={editRoute.origin || ""}
+                    onChange={(e) =>
+                      setEditRoute((prev) => ({
+                        ...prev,
+                        origin: e.target.value,
+                      }))
+                    }
+                    className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                    required
+                  >
+                    <option value="">Select origin...</option>
+                    {locations.map((location) => (
+                      <option key={location.locationId} value={location.name}>
+                        {location.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-2 block text-sm font-medium">
+                    Destination Location *
+                  </label>
+                  <select
+                    value={editRoute.destination || ""}
+                    onChange={(e) =>
+                      setEditRoute((prev) => ({
+                        ...prev,
+                        destination: e.target.value,
+                      }))
+                    }
+                    className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                    required
+                  >
+                    <option value="">Select destination...</option>
+                    {locations.map((location) => (
+                      <option key={location.locationId} value={location.name}>
+                        {location.fullName}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Operating Days */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Operating Days *
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {[
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                    "Saturday",
+                    "Sunday",
+                  ].map((day) => (
+                    <button
+                      key={day}
+                      type="button"
+                      onClick={() => toggleEditOperatingDay(day)}
+                      className={`rounded-md border px-3 py-1 text-sm ${
+                        editRoute.operatingDays?.includes(day)
+                          ? "border-blue-600 bg-blue-600 text-white"
+                          : "bg-background text-foreground border-input hover:bg-muted"
+                      }`}
+                    >
+                      {day.slice(0, 3)}
+                    </button>
+                  ))}
+                </div>
+                {editRoute.operatingDays &&
+                  editRoute.operatingDays.length === 0 && (
+                    <p className="mt-1 text-sm text-red-600">
+                      Select at least one operating day
+                    </p>
+                  )}
+              </div>
+
+              {/* Schedule Times */}
+              <div>
+                <div className="mb-2 flex items-center justify-between">
+                  <label className="text-sm font-medium">
+                    Schedule Times *
+                  </label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addEditScheduleTime}
+                  >
+                    <Timer className="mr-1 h-3 w-3" />
+                    Add Time
+                  </Button>
+                </div>
+                <div className="space-y-2">
+                  {editRoute.schedule?.map((time, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <input
+                        type="time"
+                        value={time}
+                        onChange={(e) =>
+                          updateEditScheduleTime(index, e.target.value)
+                        }
+                        className="border-input bg-background focus:ring-ring w-32 rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => removeEditScheduleTime(index)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        Remove
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+                {(!editRoute.schedule || editRoute.schedule.length === 0) && (
+                  <p className="mt-1 text-sm text-red-600">
+                    Add at least one schedule time
+                  </p>
+                )}
+              </div>
+
+              {/* Special Notes */}
+              <div>
+                <label className="mb-2 block text-sm font-medium">
+                  Special Notes (Optional)
+                </label>
+                <textarea
+                  value={editRoute.specialNotes || ""}
+                  onChange={(e) =>
+                    setEditRoute((prev) => ({
+                      ...prev,
+                      specialNotes: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., Only operates during exam periods"
+                  className="border-input bg-background focus:ring-ring w-full rounded-md border px-3 py-2 text-sm focus:border-transparent focus:ring-2 focus:outline-none"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 pt-6">
+              <Button
+                onClick={updateRoute}
+                disabled={editRouteLoading}
+                className="flex-1"
+              >
+                {editRouteLoading ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Updating Route...
+                  </>
+                ) : (
+                  "Update Route"
+                )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowEditRouteModal(false);
+                  setEditingRoute(null);
+                  setEditRoute({
+                    routeId: "",
+                    routeName: "",
+                    origin: "",
+                    destination: "",
+                    operatingDays: [],
+                    schedule: [],
+                    specialNotes: "",
+                  });
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Route Confirmation Modal */}
+      {showDeleteRouteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-background mx-4 w-full max-w-md rounded-lg p-6">
+            <h2 className="mb-4 text-xl font-semibold text-red-600">
+              Delete Route
+            </h2>
+
+            <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3">
+              <p className="text-sm text-red-800">
+                <strong>Route:</strong>{" "}
+                {
+                  routes.find((r) => r.routeId === showDeleteRouteConfirm)
+                    ?.routeName
+                }
+                <br />
+                <strong>Route ID:</strong> {showDeleteRouteConfirm}
+              </p>
+            </div>
+
+            {(() => {
+              const assignedDrivers = getDriversByRouteId(
+                showDeleteRouteConfirm,
+              );
+              return assignedDrivers.length > 0 ? (
+                <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 p-3">
+                  <p className="text-sm text-amber-800">
+                    <strong>⚠️ Cannot Delete Route</strong>
+                    <br />
+                    This route has {assignedDrivers.length} assigned driver(s):
+                    <br />
+                    {assignedDrivers.map((driver, index) => (
+                      <span key={driver.id}>
+                        • {driver.username || driver.email || "Unknown"} (Bus{" "}
+                        {driver.assignedShuttleId})
+                        {index < assignedDrivers.length - 1 && <br />}
+                      </span>
+                    ))}
+                    <br />
+                    <br />
+                    <strong>
+                      Please remove all driver assignments before deleting this
+                      route.
+                    </strong>
+                  </p>
+                </div>
+              ) : (
+                <p className="text-muted-foreground mb-6">
+                  Are you sure you want to delete this route? This action cannot
+                  be undone and will permanently remove the route from the
+                  system.
+                </p>
+              );
+            })()}
+
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteRouteConfirm(null)}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={() => deleteRoute(showDeleteRouteConfirm)}
+                className="flex-1"
+                disabled={
+                  loadingStates.deleteRoute ||
+                  getDriversByRouteId(showDeleteRouteConfirm).length > 0
+                }
+              >
+                {loadingStates.deleteRoute ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Deleting...
+                  </>
+                ) : getDriversByRouteId(showDeleteRouteConfirm).length > 0 ? (
+                  "Cannot Delete (Has Assignments)"
+                ) : (
+                  "Delete Route"
+                )}
               </Button>
             </div>
           </div>

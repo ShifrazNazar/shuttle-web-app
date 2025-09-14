@@ -33,7 +33,6 @@ import { useAuth } from "~/hooks/use-auth";
 
 const menuItems = [
   { title: "Dashboard", href: "/admin", icon: Home },
-  { title: "Schedules", href: "/admin/schedules", icon: Calendar },
   { title: "Routes", href: "/admin/routes", icon: Route },
   { title: "Analytics", href: "/admin/analytics", icon: BarChart3 },
   { title: "Users", href: "/admin/users", icon: Users },
