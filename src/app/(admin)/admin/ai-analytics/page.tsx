@@ -314,22 +314,24 @@ export default function AIAnalyticsPage() {
       )}
 
       {/* Rate Limit Notice */}
-      <Card className="border-orange-200 bg-orange-50">
-        <CardContent className="pt-6">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-orange-600" />
-            <div>
-              <p className="text-sm font-medium text-orange-800">
-                AI Service Notice
-              </p>
-              <p className="text-xs text-orange-700">
-                Free tier allows 50 requests per day. If you hit the limit,
-                fallback data will be shown.
-              </p>
+      {aiError?.toLowerCase().includes("fallback") && (
+        <Card className="border-orange-200 bg-orange-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-600" />
+              <div>
+                <p className="text-sm font-medium text-orange-800">
+                  AI Service Notice
+                </p>
+                <p className="text-xs text-orange-700">
+                  You have reached the free tier daily limit. Fallback data is
+                  being shown.
+                </p>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Intelligence Summary */}
       <Card>
