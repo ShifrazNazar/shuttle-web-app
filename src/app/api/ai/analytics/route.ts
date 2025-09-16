@@ -24,14 +24,18 @@ export async function POST(request: NextRequest) {
         console.log("📊 Generating demand predictions...");
         const demandPredictions =
           await aiService.generateDemandPredictions(analyticsData);
-        console.log(`✅ Demand predictions generated: ${demandPredictions.length} predictions`);
+        console.log(
+          `✅ Demand predictions generated: ${demandPredictions.length} predictions`,
+        );
         return NextResponse.json({ demandPredictions });
 
       case "schedule-optimizations":
         console.log("⚡ Generating schedule optimizations...");
         const scheduleOptimizations =
           await aiService.generateScheduleOptimizations(analyticsData);
-        console.log(`✅ Schedule optimizations generated: ${scheduleOptimizations.length} optimizations`);
+        console.log(
+          `✅ Schedule optimizations generated: ${scheduleOptimizations.length} optimizations`,
+        );
         return NextResponse.json({ scheduleOptimizations });
 
       case "chat":
