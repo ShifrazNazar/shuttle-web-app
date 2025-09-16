@@ -40,7 +40,7 @@ class AIService {
   ): Promise<DemandPrediction[]> {
     // Check rate limit before making API call
     if (!this.checkRateLimit()) {
-      console.warn("Rate limit reached, using fallback demand predictions");
+      console.log("⚠️ AI Service - Rate limit reached, using fallback demand predictions");
       return this.generateFallbackDemandPredictions(data);
     }
 
@@ -83,6 +83,7 @@ class AIService {
       `;
 
       this.incrementRequestCount();
+      console.log("🤖 AI Service - Calling Gemini API for demand predictions");
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -97,25 +98,25 @@ class AIService {
             .replace(/,(\s*[}\]])/g, "$1"); // Remove trailing commas
 
           return JSON.parse(cleanJson);
-        } catch (parseError) {
-          console.warn(
-            "Failed to parse AI response as JSON, using fallback:",
-            parseError,
-          );
+        } catch (_parseError) {
+          console.log("⚠️ AI Service - Failed to parse AI response as JSON, using fallback demand predictions");
           return this.generateFallbackDemandPredictions(data);
         }
       }
 
+      console.log("⚠️ AI Service - No JSON response found, using fallback demand predictions");
       return this.generateFallbackDemandPredictions(data);
     } catch (error) {
-      console.error("Error generating demand predictions:", error);
+      console.error("❌ AI Service - Error generating demand predictions:", error);
       // Check if it's a rate limit error
       if (
         error instanceof Error &&
         (error.message?.includes("429") || error.message?.includes("quota"))
       ) {
+        console.log("⚠️ AI Service - Rate limit error detected, using fallback demand predictions");
         return this.generateFallbackDemandPredictions(data);
       }
+      console.log("⚠️ AI Service - General error, using fallback demand predictions");
       return this.generateFallbackDemandPredictions(data);
     }
   }
@@ -125,7 +126,7 @@ class AIService {
   ): Promise<ScheduleOptimization[]> {
     // Check rate limit before making API call
     if (!this.checkRateLimit()) {
-      console.warn("Rate limit reached, using fallback schedule optimizations");
+      console.log("⚠️ AI Service - Rate limit reached, using fallback schedule optimizations");
       return this.generateFallbackScheduleOptimizations(data);
     }
 
@@ -167,6 +168,7 @@ class AIService {
       `;
 
       this.incrementRequestCount();
+      console.log("🤖 AI Service - Calling Gemini API for schedule optimizations");
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
       const text = response.text();
@@ -181,25 +183,25 @@ class AIService {
             .replace(/,(\s*[}\]])/g, "$1"); // Remove trailing commas
 
           return JSON.parse(cleanJson);
-        } catch (parseError) {
-          console.warn(
-            "Failed to parse AI response as JSON, using fallback:",
-            parseError,
-          );
+        } catch (_parseError) {
+          console.log("⚠️ AI Service - Failed to parse AI response as JSON, using fallback schedule optimizations");
           return this.generateFallbackScheduleOptimizations(data);
         }
       }
 
+      console.log("⚠️ AI Service - No JSON response found, using fallback schedule optimizations");
       return this.generateFallbackScheduleOptimizations(data);
     } catch (error) {
-      console.error("Error generating schedule optimizations:", error);
+      console.error("❌ AI Service - Error generating schedule optimizations:", error);
       // Check if it's a rate limit error
       if (
         error instanceof Error &&
         (error.message?.includes("429") || error.message?.includes("quota"))
       ) {
+        console.log("⚠️ AI Service - Rate limit error detected, using fallback schedule optimizations");
         return this.generateFallbackScheduleOptimizations(data);
       }
+      console.log("⚠️ AI Service - General error, using fallback schedule optimizations");
       return this.generateFallbackScheduleOptimizations(data);
     }
   }
@@ -210,7 +212,7 @@ class AIService {
   ): Promise<string> {
     // Check rate limit before making API call
     if (!this.checkRateLimit()) {
-      console.warn("Rate limit reached, using fallback response");
+      console.log("⚠️ AI Service - Rate limit reached, using fallback chat response");
       return "I'm currently experiencing high demand and cannot process your request right now. Please try again later or check the analytics dashboard for current system data.";
     }
 
@@ -242,18 +244,22 @@ class AIService {
       `;
 
       this.incrementRequestCount();
+      console.log("🤖 AI Service - Calling Gemini API for chat response");
       const result = await this.model.generateContent(prompt);
       const response = await result.response;
+      console.log("✅ AI Service - Chat response generated successfully");
       return response.text();
     } catch (error) {
-      console.error("Error in AI chat:", error);
+      console.error("❌ AI Service - Error in AI chat:", error);
       // Check if it's a rate limit error
       if (
         error instanceof Error &&
         (error.message?.includes("429") || error.message?.includes("quota"))
       ) {
+        console.log("⚠️ AI Service - Rate limit error in chat, using fallback response");
         return "I'm currently experiencing high demand and cannot process your request right now. Please try again later or check the analytics dashboard for current system data.";
       }
+      console.log("⚠️ AI Service - General error in chat, using fallback response");
       return "I'm sorry, I'm having trouble processing your request right now. Please try again later.";
     }
   }

@@ -85,9 +85,9 @@ export default function UsersPage() {
     name: string;
     email: string;
   } | null>(null);
-  const [loadingStates, setLoadingStates] = useState<{
-    [key: string]: boolean;
-  }>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {},
+  );
 
   useEffect(() => {
     void fetchUsers();
@@ -1048,7 +1048,7 @@ export default function UsersPage() {
                   placeholder="driver@example.com"
                 />
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Used for Firebase Auth login and notifications
+                  Used for Firebase Auth login
                 </p>
               </div>
 
@@ -1161,7 +1161,7 @@ export default function UsersPage() {
                   placeholder="student@example.com"
                 />
                 <p className="text-muted-foreground mt-1 text-xs">
-                  Used for Firebase Auth login and notifications
+                  Used for Firebase Auth login
                 </p>
               </div>
 

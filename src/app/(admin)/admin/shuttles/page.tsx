@@ -40,9 +40,9 @@ export default function ShuttlesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(
     null,
   );
-  const [loadingStates, setLoadingStates] = useState<{
-    [key: string]: boolean;
-  }>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {},
+  );
 
   const [formData, setFormData] = useState<ShuttleFormData>({
     licensePlate: "",

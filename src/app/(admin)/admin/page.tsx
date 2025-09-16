@@ -10,7 +10,7 @@ import { Badge } from "~/components/ui/badge";
 import { useShuttles } from "~/hooks/use-shuttles";
 import { useActiveDrivers } from "~/hooks/use-active-drivers";
 import { useState, useEffect } from "react";
-import { collection, getDocs, query, where } from "firebase/firestore";
+import { collection, getDocs } from "firebase/firestore";
 import { db } from "~/lib/firebaseClient";
 
 export default function AdminDashboardPage() {
@@ -18,26 +18,16 @@ export default function AdminDashboardPage() {
     googleMapsApiKey: env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
   });
 
-  const {
-    shuttles = [],
-    loading: shuttlesLoading,
-    error: shuttlesError,
-  } = useShuttles();
+  const { shuttles = [], error: shuttlesError } = useShuttles();
 
-  const {
-    activeDrivers = [],
-    loading: driversLoading,
-    error: driversError,
-  } = useActiveDrivers();
+  const { activeDrivers = [], loading: driversLoading } = useActiveDrivers();
 
   // Real data state
   const [routes, setRoutes] = useState<any[]>([]);
   const [users, setUsers] = useState<any[]>([]);
-  const [routeAssignments, setRouteAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const center = useMemo(() => ({ lat: 3.055465, lng: 101.700363 }), []); // Asia Pacific University of Technology & Innovation
-  const activeShuttles = shuttles.filter((s) => s.status === "active");
 
   // Real data calculations
   const totalRoutes = routes.length;
@@ -71,15 +61,7 @@ export default function AdminDashboardPage() {
         }));
         setUsers(usersData);
 
-        // Fetch route assignments
-        const assignmentsSnapshot = await getDocs(
-          collection(db, "routeAssignments"),
-        );
-        const assignmentsData = assignmentsSnapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        setRouteAssignments(assignmentsData);
+        // Note: routeAssignments removed as it was unused
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {

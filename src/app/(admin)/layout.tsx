@@ -7,7 +7,6 @@ import {
   BarChart3,
   Home,
   Route,
-  Calendar,
   Users,
   Menu,
   LogOut,

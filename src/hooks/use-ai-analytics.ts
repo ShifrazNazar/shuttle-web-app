@@ -4,7 +4,7 @@ import type {
   AIInsight,
   AIPrediction,
   AIRecommendation,
-} from "~/lib/ai-service";
+} from "~/types/analytics";
 
 interface UseAIAnalyticsReturn {
   insights: AIInsight[];

@@ -62,9 +62,9 @@ export default function RoutesPage() {
   const [showDeleteRouteConfirm, setShowDeleteRouteConfirm] = useState<
     string | null
   >(null);
-  const [loadingStates, setLoadingStates] = useState<{
-    [key: string]: boolean;
-  }>({});
+  const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>(
+    {},
+  );
   const [showAddRouteModal, setShowAddRouteModal] = useState(false);
   const [showEditRouteModal, setShowEditRouteModal] = useState(false);
   const [editingRoute, setEditingRoute] = useState<RouteData | null>(null);

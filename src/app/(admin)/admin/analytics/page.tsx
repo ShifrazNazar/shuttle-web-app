@@ -19,7 +19,7 @@ export default function AnalyticsPage() {
     void fetchAnalyticsData();
   }, []);
 
-  // No automatic AI generation for basic analytics
+  // No automatic AI generation for analytics
 
   const fetchAnalyticsData = async () => {
     try {
@@ -122,8 +122,7 @@ export default function AnalyticsPage() {
             System Overview & Performance
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Real-time system monitoring, operational metrics, and basic
-            analytics
+            Real-time system monitoring, operational metrics, and analytics
           </p>
         </div>
         <div className="flex gap-2">
