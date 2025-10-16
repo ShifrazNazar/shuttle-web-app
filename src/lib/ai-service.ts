@@ -12,7 +12,7 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 export type { DemandPrediction, ScheduleOptimization } from "~/types/analytics";
 
 class AIService {
-  private model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+  private model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
   private requestCount = 0;
   private lastResetTime: number = Date.now();
   private readonly DAILY_LIMIT = 45; // Leave some buffer
@@ -247,10 +247,83 @@ class AIService {
     }
 
     try {
+      // Derive driver-to-route mapping details for richer context
+      const routeIdToAssignments: Record<string, any[]> = {};
+      (data.routeAssignments || []).forEach((a: any) => {
+        const rId = a.routeId || a.route_id || a.route || "";
+        if (!rId) return;
+        if (!routeIdToAssignments[rId]) routeIdToAssignments[rId] = [];
+        routeIdToAssignments[rId].push(a);
+      });
+
+      const routeIdToName: Record<string, string> = {};
+      (data.routes || []).forEach((r: any) => {
+        const id = r.routeId || r.id;
+        if (!id) return;
+        routeIdToName[id] = r.routeName || r.name || `Route ${id}`;
+      });
+
+      // Build driver name map for quick lookup
+      const userIdToDriverName: Record<string, string> = {};
+      (data.users || []).forEach((u: any) => {
+        if (!u?.id) return;
+        userIdToDriverName[u.id] = u.name || u.username || u.email || u.id;
+      });
+
+      const activeRoutes = (data.routes || []).filter(
+        (r: any) => r.isActive !== false,
+      );
+      const activeRoutesWithoutDrivers = activeRoutes.filter((r: any) => {
+        const id = r.routeId || r.id;
+        const assignments = routeIdToAssignments[id] || [];
+        return assignments.length === 0;
+      });
+
+      const driversPerRouteTop5 = activeRoutes
+        .map((r: any) => {
+          const id = r.routeId || r.id;
+          const name = routeIdToName[id] || `Route ${id}`;
+          const assigns = routeIdToAssignments[id] || [];
+          const driverNames = Array.from(
+            new Set(
+              assigns
+                .map((a: any) => userIdToDriverName[a.driverId] || a.driverId)
+                .filter(Boolean),
+            ),
+          );
+          return {
+            route: name,
+            drivers: driverNames.length,
+            driverNames: driverNames.slice(0, 10),
+          };
+        })
+        .sort((a: any, b: any) => b.drivers - a.drivers)
+        .slice(0, 5);
+
+      const specificRouteName = "Bloomsvale to APU";
+      const specificRoute = (data.routes || []).find(
+        (r: any) => (r.routeName || r.name) === specificRouteName,
+      );
+      let specificRouteDrivers: number | null = null;
+      let specificRouteDriverNames: string[] | null = null;
+      if (specificRoute) {
+        const srId = specificRoute.routeId || specificRoute.id;
+        const assigns = routeIdToAssignments[srId] || [];
+        const names = Array.from(
+          new Set(
+            assigns
+              .map((a: any) => userIdToDriverName[a.driverId] || a.driverId)
+              .filter(Boolean),
+          ),
+        );
+        specificRouteDriverNames = names.slice(0, 20);
+        specificRouteDrivers = names.length;
+      }
+
       const prompt = `
-        You are an AI analytics assistant for a shuttle management system. 
-        Answer this question: "${question}"
-        
+        You are an AI analytics assistant for a shuttle management system.
+        Answer this question: "${question}" using ONLY the most relevant facts from the data below.
+
         Current System Data:
         - Total Routes: ${data.totalRoutes}
         - Active Routes: ${data.routes.filter((r) => r.isActive !== false).length}
@@ -260,17 +333,31 @@ class AIService {
         - Active Shuttles: ${data.activeShuttles}
         - Assigned Shuttles: ${data.assignedShuttles}
         - Available Shuttles: ${data.availableShuttles}
+        - Shuttles (count): ${data.shuttles?.length || 0}
+        - Users (count): ${data.users?.length || 0}
+        - Route Assignments (count): ${data.routeAssignments?.length || 0}
+        - Locations (count): ${data.locations?.length || 0}
+        - Daily Stats (count): ${data.dailyStats?.length || 0}
         - Total Boarding Records: ${data.boardingRecords.length}
         - Digital Travel Cards: ${data.digitalTravelCards.length}
-        
+        - Legacy: totalDepartures=${data.totalDepartures ?? "n/a"}, averageWaitTime=${data.averageWaitTime ?? "n/a"}, onTimePercentage=${data.onTimePercentage ?? "n/a"}
+        - Peak Hours: ${JSON.stringify(data.peakHours || {})}
+        - Active Routes Without Drivers: ${activeRoutesWithoutDrivers.length}
+
         Routes: ${data.routes.map((r) => `${r.routeName || r.routeId} (${r.isActive ? "Active" : "Inactive"})`).join(", ")}
-        
-        Recent Usage Patterns:
-        - Peak Hours: ${this.getPeakHours(data.boardingRecords)}
-        - Most Popular Routes: ${this.getPopularRoutes(data.boardingRecords)}
-        
-        Provide a helpful, data-driven answer based on the current system state.
-        Be specific and actionable in your response.
+        Route Performance (top 5): ${JSON.stringify((data.routePerformance || []).slice(0, 5))}
+        Location Usage (top 5): ${JSON.stringify((data.locationUsage || []).slice(0, 5))}
+        Drivers Per Route (top 5): ${JSON.stringify(driversPerRouteTop5)}
+        ${specificRouteDrivers !== null ? `Drivers for ${specificRouteName}: ${specificRouteDrivers} - ${JSON.stringify(specificRouteDriverNames)}` : "Drivers for Bloomsvale to APU: unavailable"}
+
+        Constraints for your output:
+        - Plain text only (no markdown, no bold, no headings, no emojis).
+        - Maximum 60 words.
+        - If the question targets a specific metric, answer directly with that value and one-line context.
+        - If a critical anomaly exists (e.g., active drivers = 0 while active routes > 0), state the risk in one line and include one direct action.
+        - If route-level driver assignment details are unavailable (e.g., no clear mapping from routeAssignments to named routes like "Bloomsvale to APU"), explicitly say this in one short clause.
+        - Otherwise, reply in 1-2 short sentences or up to 3 concise bullets.
+        - Do not include labels or boilerplate. Answer only with the relevant content.
       `;
 
       this.incrementRequestCount();
