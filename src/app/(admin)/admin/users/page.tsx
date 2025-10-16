@@ -13,7 +13,11 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { showToast } from "~/lib/toast";
-import { useAvailableShuttles, useShuttles } from "~/hooks/use-shuttles";
+import {
+  useAvailableShuttles,
+  useShuttles,
+  useShuttleActions,
+} from "~/hooks/use-shuttles";
 
 import { db } from "~/lib/firebaseClient";
 import { Button } from "~/components/ui/button";
@@ -43,6 +47,7 @@ export default function UsersPage() {
 
   // Get all shuttles for display details
   const { shuttles } = useShuttles();
+  const { assignShuttleToDriver, unassignShuttle } = useShuttleActions();
   const [driverSearchTerm, setDriverSearchTerm] = useState("");
   const [studentSearchTerm, setStudentSearchTerm] = useState("");
   const [showAddDriverModal, setShowAddDriverModal] = useState(false);
@@ -425,11 +430,27 @@ export default function UsersPage() {
       );
 
       const newAssignment = assignBusFormData.assignedShuttleId;
+      const oldAssignment = assigningDriver.assignedShuttleId;
 
+      // Update driver's assignedShuttleId
       await updateDoc(driverRef, {
         assignedShuttleId: newAssignment,
         updatedAt: new Date(),
       });
+
+      // Update shuttle assignments
+      if (oldAssignment) {
+        // Unassign old shuttle
+        await unassignShuttle(oldAssignment);
+      }
+
+      if (newAssignment) {
+        // Assign new shuttle
+        await assignShuttleToDriver(
+          newAssignment,
+          assigningDriver.uid || assigningDriver.id,
+        );
+      }
 
       // Update route assignments with new bus ID
       await updateRouteAssignmentsForDriver(

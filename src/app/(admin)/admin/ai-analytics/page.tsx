@@ -49,6 +49,16 @@ export default function AIAnalyticsPage() {
 
   // No automatic AI generation - user triggered only
 
+  // Helper function to get route name by ID
+  const getRouteName = (routeId: string) => {
+    if (!analyticsData?.routes) return `Route ${routeId}`;
+
+    // Routes are stored with routeId as the document ID, so r.id === routeId
+    const route = analyticsData.routes.find((r) => r.id === routeId);
+
+    return route?.routeName || `Route ${routeId}`;
+  };
+
   const fetchAnalyticsData = async () => {
     try {
       // Fetch all data from Firestore collections
@@ -521,7 +531,9 @@ export default function AIAnalyticsPage() {
             {scheduleOptimizations.map((optimization, index) => (
               <div key={index} className="rounded-lg border bg-green-50 p-4">
                 <div className="mb-3 flex items-center justify-between">
-                  <h4 className="font-medium">Route: {optimization.routeId}</h4>
+                  <h4 className="font-medium">
+                    Route: {getRouteName(optimization.routeId)}
+                  </h4>
                   <Badge variant="outline" className="text-xs">
                     +{optimization.efficiencyGain}% efficiency
                   </Badge>

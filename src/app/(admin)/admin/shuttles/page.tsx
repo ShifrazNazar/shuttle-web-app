@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Plus,
   Edit,
@@ -19,17 +19,68 @@ import {
   useShuttleStats,
 } from "~/hooks/use-shuttles";
 import { showToast } from "~/lib/toast";
-import type { ShuttleFleet, ShuttleFormData } from "~/types";
+import type { ShuttleFleet, ShuttleFormData, Driver } from "~/types";
+import { collection, getDocs, query, where } from "firebase/firestore";
+import { db } from "~/lib/firebaseClient";
 
 export default function ShuttlesPage() {
   const { shuttles, loading, error, refetch } = useShuttles();
-  const { stats } = useShuttleStats();
+  const { stats: defaultStats } = useShuttleStats();
   const {
     createShuttle,
     updateShuttle,
     deleteShuttle,
     loading: actionLoading,
   } = useShuttleActions();
+
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [driversLoading, setDriversLoading] = useState(true);
+
+  // Fetch drivers data
+  useEffect(() => {
+    const fetchDrivers = async () => {
+      try {
+        const driversRef = collection(db, "users");
+        const driversQuery = query(driversRef, where("role", "==", "driver"));
+        const driversSnapshot = await getDocs(driversQuery);
+        const driversData = driversSnapshot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        })) as Driver[];
+
+        setDrivers(driversData);
+      } catch (error) {
+        console.error("Error fetching drivers:", error);
+      } finally {
+        setDriversLoading(false);
+      }
+    };
+
+    fetchDrivers();
+  }, []);
+
+  // Calculate correct stats using both approaches
+  const stats = {
+    total: shuttles.length,
+    active: shuttles.filter((s) => s.status === "active").length,
+    inactive: shuttles.filter((s) => s.status === "inactive").length,
+    maintenance: shuttles.filter((s) => s.status === "maintenance").length,
+    assigned: (() => {
+      // Use the same logic as analytics page
+      const driversWithShuttles = drivers.filter((d) => d.assignedShuttleId);
+      const shuttlesWithDrivers = shuttles.filter((s) => s.driverId);
+
+      // Get unique assigned shuttle count (combine both approaches)
+      const assignedShuttleIds = new Set([
+        ...driversWithShuttles.map((d) => d.assignedShuttleId),
+        ...shuttlesWithDrivers.map((s) => s.id),
+      ]);
+
+      return assignedShuttleIds.size;
+    })(),
+    available: shuttles.filter((s) => s.status === "active" && !s.driverId)
+      .length,
+  };
 
   const [searchTerm, setSearchTerm] = useState("");
   const [showAddModal, setShowAddModal] = useState(false);
@@ -149,7 +200,7 @@ export default function ShuttlesPage() {
     }
   };
 
-  if (loading) {
+  if (loading || driversLoading) {
     return (
       <div className="space-y-6">
         <h1 className="text-2xl font-semibold">Shuttle Management</h1>
@@ -327,11 +378,30 @@ export default function ShuttlesPage() {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    {shuttle.driverId ? (
-                      <span className="text-sm text-blue-600">Assigned</span>
-                    ) : (
-                      <span className="text-sm text-gray-500">Available</span>
-                    )}
+                    {(() => {
+                      // Find driver assigned to this shuttle using both approaches
+                      const driverByShuttleId = drivers.find(
+                        (d) => d.assignedShuttleId === shuttle.id,
+                      );
+                      const driverByDriverId = shuttle.driverId
+                        ? drivers.find((d) => d.id === shuttle.driverId)
+                        : null;
+                      const assignedDriver =
+                        driverByShuttleId || driverByDriverId;
+
+                      return assignedDriver ? (
+                        <div>
+                          <span className="text-sm text-blue-600">
+                            Assigned
+                          </span>
+                          <div className="text-xs text-gray-500">
+                            {assignedDriver.username || assignedDriver.email}
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">Available</span>
+                      );
+                    })()}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-1">

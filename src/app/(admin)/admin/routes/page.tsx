@@ -975,9 +975,6 @@ export default function RoutesPage() {
                                 <Badge variant="default" className="text-xs">
                                   {driver.username}
                                 </Badge>
-                                <span className="text-muted-foreground text-sm">
-                                  Bus {driver.assignedShuttleId}
-                                </span>
                               </div>
                               <Button
                                 variant="outline"
@@ -1096,7 +1093,7 @@ export default function RoutesPage() {
                 <option value="">Choose a driver...</option>
                 {getAvailableDrivers().map((driver) => (
                   <option key={driver.id} value={driver.id}>
-                    {driver.username} - Bus {driver.assignedShuttleId}
+                    {driver.username}
                   </option>
                 ))}
               </select>
@@ -1699,7 +1696,6 @@ export default function RoutesPage() {
                     {assignedDrivers.map((driver, index) => (
                       <span key={driver.id}>
                         • {driver.username || driver.email || "Unknown"} (Bus{" "}
-                        {driver.assignedShuttleId})
                         {index < assignedDrivers.length - 1 && <br />}
                       </span>
                     ))}

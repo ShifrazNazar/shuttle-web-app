@@ -21,6 +21,11 @@ export default function AnalyticsPage() {
 
   // No automatic AI generation for analytics
 
+  // Helper function to get shuttle info by ID
+  const getShuttleInfo = (shuttleId: string, shuttles: any[]) => {
+    return shuttles.find((s) => s.id === shuttleId);
+  };
+
   const fetchAnalyticsData = async () => {
     try {
       // Fetch all data from Firestore collections
@@ -64,12 +69,24 @@ export default function AnalyticsPage() {
         (doc) => ({ id: doc.id, ...doc.data() }) as any,
       );
 
+      // Calculate assigned shuttles using both approaches for consistency
+      const driversWithShuttles = users.filter(
+        (u) => u.role === "driver" && u.assignedShuttleId,
+      );
+      const shuttlesWithDrivers = shuttles.filter((s) => s.driverId);
+
+      // Get unique assigned shuttle count (combine both approaches)
+      const assignedShuttleIds = new Set([
+        ...driversWithShuttles.map((d) => d.assignedShuttleId),
+        ...shuttlesWithDrivers.map((s) => s.id),
+      ]);
+
       const analyticsData: AnalyticsData = {
         totalRoutes: routes.length,
         totalDrivers: users.filter((u) => u.role === "driver").length,
         totalStudents: users.filter((u) => u.role === "student").length,
         activeShuttles: shuttles.filter((s) => s.status === "active").length,
-        assignedShuttles: shuttles.filter((s) => s.driverId).length,
+        assignedShuttles: assignedShuttleIds.size,
         availableShuttles: shuttles.filter(
           (s) => s.status === "active" && !s.driverId,
         ).length,
@@ -311,7 +328,7 @@ export default function AnalyticsPage() {
                         {index + 1}
                       </div>
                       <span className="text-sm font-medium">
-                        {route.name || `Route ${route.id}`}
+                        {route.routeName || `Route ${route.id}`}
                       </span>
                     </div>
                     <div className="text-right">
@@ -345,29 +362,42 @@ export default function AnalyticsPage() {
           <CardContent>
             <div className="space-y-3">
               {analyticsData.shuttles.length > 0 ? (
-                analyticsData.shuttles.slice(0, 5).map((shuttle, index) => (
-                  <div
-                    key={shuttle.id}
-                    className="flex items-center justify-between"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-xs font-medium text-green-600">
-                        {index + 1}
+                analyticsData.shuttles.slice(0, 5).map((shuttle, index) => {
+                  // Find driver assigned to this shuttle using both approaches
+                  const driverByShuttleId = analyticsData.users.find(
+                    (u) => u.assignedShuttleId === shuttle.id,
+                  );
+                  const driverByDriverId = shuttle.driverId
+                    ? analyticsData.users.find((u) => u.id === shuttle.driverId)
+                    : null;
+                  const assignedDriver = driverByShuttleId || driverByDriverId;
+
+                  return (
+                    <div
+                      key={shuttle.id}
+                      className="flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-100 text-xs font-medium text-green-600">
+                          {index + 1}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {shuttle.licensePlate || shuttle.id}
+                        </span>
                       </div>
-                      <span className="text-sm font-medium">
-                        {shuttle.licensePlate || shuttle.id}
-                      </span>
+                      <div className="text-right">
+                        <div className="font-semibold">
+                          {shuttle.status || "Unknown"}
+                        </div>
+                        <div className="text-muted-foreground text-xs">
+                          {assignedDriver
+                            ? `Driver: ${assignedDriver.username || assignedDriver.email}`
+                            : `${shuttle.capacity || 0} seats`}
+                        </div>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold">
-                        {shuttle.status || "Unknown"}
-                      </div>
-                      <div className="text-muted-foreground text-xs">
-                        {shuttle.capacity || 0} seats
-                      </div>
-                    </div>
-                  </div>
-                ))
+                  );
+                })
               ) : (
                 <div className="py-4 text-center">
                   <p className="text-muted-foreground text-sm">
@@ -408,9 +438,13 @@ export default function AnalyticsPage() {
                     const route = analyticsData.routes.find(
                       (r) => r.id === assignment.routeId,
                     );
-                    const shuttle = analyticsData.shuttles.find(
-                      (s) => s.id === assignment.shuttleId,
-                    );
+
+                    // Use the same logic as users page - check both assignment.shuttleId and driver.assignedShuttleId
+                    const shuttleId =
+                      assignment.shuttleId || driver?.assignedShuttleId;
+                    const shuttle = shuttleId
+                      ? getShuttleInfo(shuttleId, analyticsData.shuttles)
+                      : null;
 
                     return (
                       <tr
@@ -432,7 +466,8 @@ export default function AnalyticsPage() {
                         <td className="p-3">
                           <div>
                             <div className="font-medium">
-                              {route?.name || `Route ${assignment.routeId}`}
+                              {route?.routeName ||
+                                `Route ${assignment.routeId}`}
                             </div>
                             <div className="text-muted-foreground text-sm">
                               {route?.stops?.length || 0} stops

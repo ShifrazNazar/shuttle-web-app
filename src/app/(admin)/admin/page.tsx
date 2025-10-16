@@ -229,26 +229,28 @@ export default function AdminDashboardPage() {
                   return (
                     <div
                       key={driver.driverId}
-                      className="flex items-center justify-between rounded-lg border bg-green-50 p-3"
+                      className="flex items-center justify-between gap-3 rounded-lg border bg-green-50 p-3"
                     >
-                      <div className="flex-1">
+                      <div className="min-w-0 flex-1">
                         <div className="mb-1 flex items-center gap-2">
-                          <p className="font-medium">Bus {driver.busId}</p>
                           {shuttle && (
-                            <Badge variant="outline" className="text-xs">
+                            <Badge
+                              variant="outline"
+                              className="shrink-0 text-xs"
+                            >
                               {shuttle.licensePlate}
                             </Badge>
                           )}
                         </div>
-                        <p className="text-muted-foreground text-sm">
+                        <p className="text-muted-foreground truncate text-sm">
                           Driver: {driver.driverEmail || "Unknown"}
                         </p>
-                        <p className="text-muted-foreground text-xs">
+                        <p className="text-muted-foreground truncate text-xs">
                           Last update:{" "}
                           {new Date(driver.timestamp).toLocaleTimeString()}
                         </p>
                         {shuttle && (
-                          <p className="text-muted-foreground text-xs">
+                          <p className="text-muted-foreground truncate text-xs">
                             {shuttle.model} ({shuttle.capacity} seats)
                           </p>
                         )}
